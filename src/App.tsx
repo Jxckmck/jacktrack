@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 
 type Tab = 'home' | 'skills' | 'lesson' | 'progress' | 'more'
@@ -33,6 +33,13 @@ type Lesson = {
   needsWork: string
   nextLesson: string
 }
+
+type SavedData = {
+  progress: Record<number, ProgressLevel>
+  lessons: Lesson[]
+}
+
+const STORAGE_KEY = 'jacktrack-data-v1'
 
 const skillGroups: SkillGroup[] = [
   {
@@ -154,11 +161,44 @@ const skillGroups: SkillGroup[] = [
 
 const allSkills = skillGroups.flatMap((group) => group.skills)
 
-const defaultProgress: Record<number, ProgressLevel> = {}
+const createDefaultProgress = (): Record<number, ProgressLevel> => {
+  const defaultProgress: Record<number, ProgressLevel> = {}
 
-allSkills.forEach((skill) => {
-  defaultProgress[skill.id] = 'Not started'
-})
+  allSkills.forEach((skill) => {
+    defaultProgress[skill.id] = 'Not started'
+  })
+
+  return defaultProgress
+}
+
+const loadSavedData = (): SavedData => {
+  const defaultData: SavedData = {
+    progress: createDefaultProgress(),
+    lessons: [],
+  }
+
+  try {
+    const savedData = localStorage.getItem(STORAGE_KEY)
+
+    if (!savedData) {
+      return defaultData
+    }
+
+    const parsedData = JSON.parse(savedData) as Partial<SavedData>
+
+    return {
+      progress: {
+        ...defaultData.progress,
+        ...(parsedData.progress ?? {}),
+      },
+      lessons: Array.isArray(parsedData.lessons)
+        ? parsedData.lessons
+        : [],
+    }
+  } catch {
+    return defaultData
+  }
+}
 
 function getProgressColour(percentage: number) {
   if (percentage < 40) return '#dc2626'
@@ -208,26 +248,43 @@ function ProgressRing({ percentage }: { percentage: number }) {
 }
 
 function App() {
+  const initialData = loadSavedData()
+
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [selectedSkill, setSelectedSkill] =
     useState<DrivingSkill | null>(null)
 
   const [progress, setProgress] =
-    useState<Record<number, ProgressLevel>>(defaultProgress)
+    useState<Record<number, ProgressLevel>>(initialData.progress)
 
-  const [lessons, setLessons] = useState<Lesson[]>([])
+  const [lessons, setLessons] =
+    useState<Lesson[]>(initialData.lessons)
 
   const [lessonDate, setLessonDate] = useState(
     new Date().toISOString().slice(0, 10),
   )
   const [lessonDuration, setLessonDuration] = useState('')
-  const [roadType, setRoadType] = useState('Quiet residential roads')
+  const [roadType, setRoadType] =
+    useState('Quiet residential roads')
   const [objectives, setObjectives] = useState('')
-  const [selectedLessonSkills, setSelectedLessonSkills] = useState<number[]>([])
+  const [selectedLessonSkills, setSelectedLessonSkills] =
+    useState<number[]>([])
   const [wentWell, setWentWell] = useState('')
   const [needsWork, setNeedsWork] = useState('')
   const [nextLesson, setNextLesson] = useState('')
   const [lessonSaved, setLessonSaved] = useState(false)
+
+  useEffect(() => {
+    const dataToSave: SavedData = {
+      progress,
+      lessons,
+    }
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(dataToSave),
+    )
+  }, [progress, lessons])
 
   const updateProgress = (
     skillId: number,
@@ -274,7 +331,11 @@ function App() {
       nextLesson,
     }
 
-    setLessons((currentLessons) => [newLesson, ...currentLessons])
+    setLessons((currentLessons) => [
+      newLesson,
+      ...currentLessons,
+    ])
+
     setLessonSaved(true)
 
     setTimeout(() => {
@@ -304,7 +365,9 @@ function App() {
         <div>
           <span className="badge">Automatic learner</span>
           <h2>Building confidence</h2>
-          <p>Keep each session calm, focused and consistent.</p>
+          <p>
+            Keep each session calm, focused and consistent.
+          </p>
         </div>
 
         <ProgressRing percentage={overallProgress} />
@@ -328,9 +391,12 @@ function App() {
 
         <div className="lesson-card">
           <h3>Quiet-road control session</h3>
+
           <p>
-            Practise observations, smooth brake release and controlled stopping.
+            Practise observations, smooth brake release and
+            controlled stopping.
           </p>
+
           <span>30–40 minutes</span>
         </div>
       </section>
@@ -342,7 +408,8 @@ function App() {
 
           <div className="lesson-card">
             <h3>
-              {lessons[0].duration} minutes · {lessons[0].roadType}
+              {lessons[0].duration} minutes ·{' '}
+              {lessons[0].roadType}
             </h3>
 
             <p>
@@ -390,7 +457,8 @@ function App() {
           <h3>Current progress</h3>
 
           <p>
-            Choose the level that best reflects Emily’s current ability.
+            Choose the level that best reflects Emily’s current
+            ability.
           </p>
 
           <select
@@ -421,16 +489,16 @@ function App() {
         <div className="lesson-card spaced-card">
           <h3>Teacher watch-outs</h3>
           <p>
-            Watch for rushed observations, excessive prompting and habits that
-            prevent Emily from making her own decisions.
+            Watch for rushed observations, excessive prompting and
+            habits that prevent Emily from making her own decisions.
           </p>
         </div>
 
         <div className="lesson-card spaced-card">
           <h3>Ready to progress when</h3>
           <p>
-            Emily can demonstrate the skill safely and consistently in
-            different situations with progressively less help.
+            Emily can demonstrate the skill safely and consistently
+            in different situations with progressively less help.
           </p>
         </div>
       </section>
@@ -446,15 +514,16 @@ function App() {
         <h1>Driving skills</h1>
 
         <p>
-          Track Emily’s development through all 27 recommended learning skills.
+          Track Emily’s development through all 27 recommended
+          learning skills.
         </p>
 
         <div className="lesson-card skills-summary">
           <h3>{completedSkills} of 27 independently achieved</h3>
 
           <p>
-            Skills count towards completion when they reach Independent or
-            Reflection.
+            Skills count towards completion when they reach
+            Independent or Reflection.
           </p>
         </div>
 
@@ -491,14 +560,16 @@ function App() {
       <h1>Record a lesson</h1>
 
       <p>
-        Set this up before driving, then complete the reflection once safely
-        parked.
+        Set this up before driving, then complete the reflection once
+        safely parked.
       </p>
 
       {lessonSaved && (
         <div className="lesson-card skills-summary">
           <h3>Lesson saved</h3>
-          <p>Your lesson has been added to the history for this session.</p>
+          <p>
+            Your lesson has been saved permanently on this device.
+          </p>
         </div>
       )}
 
@@ -508,7 +579,9 @@ function App() {
           className="progress-select"
           type="date"
           value={lessonDate}
-          onChange={(event) => setLessonDate(event.target.value)}
+          onChange={(event) =>
+            setLessonDate(event.target.value)
+          }
         />
       </div>
 
@@ -520,16 +593,21 @@ function App() {
           min="1"
           placeholder="Example: 45"
           value={lessonDuration}
-          onChange={(event) => setLessonDuration(event.target.value)}
+          onChange={(event) =>
+            setLessonDuration(event.target.value)
+          }
         />
       </div>
 
       <div className="lesson-card spaced-card">
         <h3>Road type</h3>
+
         <select
           className="progress-select"
           value={roadType}
-          onChange={(event) => setRoadType(event.target.value)}
+          onChange={(event) =>
+            setRoadType(event.target.value)
+          }
         >
           <option>Quiet residential roads</option>
           <option>Industrial estate</option>
@@ -543,12 +621,15 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>Lesson objectives</h3>
+
         <textarea
           className="progress-select"
           rows={4}
           placeholder="What are you planning to practise?"
           value={objectives}
-          onChange={(event) => setObjectives(event.target.value)}
+          onChange={(event) =>
+            setObjectives(event.target.value)
+          }
         />
       </div>
 
@@ -583,34 +664,43 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>What went well?</h3>
+
         <textarea
           className="progress-select"
           rows={4}
           placeholder="Record strengths and improvements."
           value={wentWell}
-          onChange={(event) => setWentWell(event.target.value)}
+          onChange={(event) =>
+            setWentWell(event.target.value)
+          }
         />
       </div>
 
       <div className="lesson-card spaced-card">
         <h3>What needs more work?</h3>
+
         <textarea
           className="progress-select"
           rows={4}
           placeholder="Record mistakes, prompts or areas lacking confidence."
           value={needsWork}
-          onChange={(event) => setNeedsWork(event.target.value)}
+          onChange={(event) =>
+            setNeedsWork(event.target.value)
+          }
         />
       </div>
 
       <div className="lesson-card spaced-card">
         <h3>Recommended next lesson</h3>
+
         <textarea
           className="progress-select"
           rows={3}
           placeholder="What should you focus on next time?"
           value={nextLesson}
-          onChange={(event) => setNextLesson(event.target.value)}
+          onChange={(event) =>
+            setNextLesson(event.target.value)
+          }
         />
       </div>
 
@@ -637,14 +727,16 @@ function App() {
       <div className="lesson-card skills-summary">
         <h3>{overallProgress}% independently achieved</h3>
         <p>
-          {completedSkills} of 27 skills are currently marked Independent or
-          Reflection.
+          {completedSkills} of 27 skills are currently marked
+          Independent or Reflection.
         </p>
       </div>
 
       <div className="lesson-card spaced-card">
         <h3>Lessons recorded</h3>
-        <p>{lessons.length} lessons have been saved during this session.</p>
+        <p>
+          {lessons.length} lessons are saved on this device.
+        </p>
       </div>
     </section>
   )
@@ -660,9 +752,17 @@ function App() {
       </div>
 
       <div className="lesson-card spaced-card">
+        <h3>Offline saving</h3>
+        <p>
+          Skill progress and lesson history are automatically saved
+          on this device.
+        </p>
+      </div>
+
+      <div className="lesson-card spaced-card">
         <h3>Coming next</h3>
         <p>
-          Offline saving, backups, GPS lesson recording and route reflection.
+          Backup and restore, GPS recording and route reflection.
         </p>
       </div>
     </section>
