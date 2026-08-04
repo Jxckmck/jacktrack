@@ -230,7 +230,10 @@ function ProgressRing({ percentage }: { percentage: number }) {
   const progressColour = getProgressColour(percentage)
 
   return (
-    <div className="jt-progress-ring" aria-label={`${percentage}% complete`}>
+    <div
+      className="jt-progress-ring"
+      aria-label={`${percentage}% complete`}
+    >
       <svg viewBox="0 0 100 100">
         <circle
           className="progress-circle-track"
@@ -252,7 +255,9 @@ function ProgressRing({ percentage }: { percentage: number }) {
       </svg>
 
       <div className="progress-circle-label">
-        <strong style={{ color: progressColour }}>{percentage}%</strong>
+        <strong style={{ color: progressColour }}>
+          {percentage}%
+        </strong>
         <span>complete</span>
       </div>
     </div>
@@ -269,13 +274,15 @@ function App() {
   const [progress, setProgress] =
     useState<Record<number, ProgressLevel>>(initialData.progress)
 
-  const [lessons, setLessons] = useState<Lesson[]>(initialData.lessons)
+  const [lessons, setLessons] =
+    useState<Lesson[]>(initialData.lessons)
 
   const [lessonDate, setLessonDate] = useState(
     new Date().toISOString().slice(0, 10),
   )
   const [lessonDuration, setLessonDuration] = useState('')
-  const [roadType, setRoadType] = useState('Quiet residential roads')
+  const [roadType, setRoadType] =
+    useState('Quiet residential roads')
   const [objectives, setObjectives] = useState('')
   const [selectedLessonSkills, setSelectedLessonSkills] =
     useState<number[]>([])
@@ -284,6 +291,7 @@ function App() {
   const [nextLesson, setNextLesson] = useState('')
   const [lessonSaved, setLessonSaved] = useState(false)
   const [backupMessage, setBackupMessage] = useState('')
+  const [resetMessage, setResetMessage] = useState('')
 
   useEffect(() => {
     const dataToSave: SavedData = {
@@ -291,7 +299,10 @@ function App() {
       lessons,
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave))
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(dataToSave),
+    )
   }, [progress, lessons])
 
   const updateProgress = (
@@ -309,7 +320,9 @@ function App() {
       level === 'Independent' || level === 'Reflection',
   ).length
 
-  const overallProgress = Math.round((completedSkills / 27) * 100)
+  const overallProgress = Math.round(
+    (completedSkills / 27) * 100,
+  )
 
   const toggleLessonSkill = (skillId: number) => {
     setSelectedLessonSkills((currentSkills) =>
@@ -388,7 +401,9 @@ function App() {
     const date = new Date().toISOString().slice(0, 10)
 
     downloadLink.href = downloadUrl
-    downloadLink.download = `jacktrack-emily-backup-${date}.json`
+    downloadLink.download =
+      `jacktrack-emily-backup-${date}.json`
+
     document.body.appendChild(downloadLink)
     downloadLink.click()
     downloadLink.remove()
@@ -406,7 +421,9 @@ function App() {
 
     try {
       const fileContents = await backupFile.text()
-      const parsedData = JSON.parse(fileContents) as Partial<SavedData>
+      const parsedData = JSON.parse(
+        fileContents,
+      ) as Partial<SavedData>
 
       if (
         !parsedData ||
@@ -455,6 +472,7 @@ function App() {
       setProgress(restoredProgress)
       setLessons(validLessons)
       setBackupMessage('Backup restored successfully.')
+      setResetMessage('')
     } catch {
       setBackupMessage(
         'That file is not a valid JackTrack backup.',
@@ -462,6 +480,33 @@ function App() {
     }
 
     event.target.value = ''
+  }
+
+  const resetLearnerData = () => {
+    const confirmation = window.prompt(
+      'This will permanently delete all of Emily’s skill progress and lesson history on this device.\n\nType RESET to continue.',
+    )
+
+    if (confirmation === null) return
+
+    if (confirmation.trim().toUpperCase() !== 'RESET') {
+      setResetMessage(
+        'Reset cancelled because RESET was not entered correctly.',
+      )
+      return
+    }
+
+    setProgress(createDefaultProgress())
+    setLessons([])
+    setSelectedSkill(null)
+    setLessonDuration('')
+    setObjectives('')
+    setSelectedLessonSkills([])
+    setWentWell('')
+    setNeedsWork('')
+    setNextLesson('')
+    setBackupMessage('')
+    setResetMessage('Emily’s learner data has been reset.')
   }
 
   const renderHome = () => (
@@ -479,7 +524,9 @@ function App() {
         <div>
           <span className="badge">Automatic learner</span>
           <h2>Building confidence</h2>
-          <p>Keep each session calm, focused and consistent.</p>
+          <p>
+            Keep each session calm, focused and consistent.
+          </p>
         </div>
 
         <ProgressRing percentage={overallProgress} />
@@ -493,6 +540,7 @@ function App() {
           <strong>Start a lesson</strong>
           <small>Plan objectives and record the drive</small>
         </span>
+
         <span>›</span>
       </button>
 
@@ -502,10 +550,12 @@ function App() {
 
         <div className="lesson-card">
           <h3>Quiet-road control session</h3>
+
           <p>
-            Practise observations, smooth brake release and controlled
-            stopping.
+            Practise observations, smooth brake release and
+            controlled stopping.
           </p>
+
           <span>30–40 minutes</span>
         </div>
       </section>
@@ -517,7 +567,8 @@ function App() {
 
           <div className="lesson-card">
             <h3>
-              {lessons[0].duration} minutes · {lessons[0].roadType}
+              {lessons[0].duration} minutes ·{' '}
+              {lessons[0].roadType}
             </h3>
 
             <p>
@@ -525,7 +576,9 @@ function App() {
                 'Lesson saved. Add reflection notes next time for a fuller summary.'}
             </p>
 
-            <span>{lessons[0].skills.length} skills practised</span>
+            <span>
+              {lessons[0].skills.length} skills practised
+            </span>
           </div>
         </section>
       )}
@@ -552,6 +605,7 @@ function App() {
 
         <div className="lesson-card">
           <h3>Current progress</h3>
+
           <p>
             Choose the level that best reflects Emily’s current
             ability.
@@ -616,6 +670,7 @@ function App() {
 
         <div className="lesson-card skills-summary">
           <h3>{completedSkills} of 27 independently achieved</h3>
+
           <p>
             Skills count towards completion when they reach
             Independent or Reflection.
@@ -713,22 +768,28 @@ function App() {
       {lessonSaved && (
         <div className="lesson-card skills-summary">
           <h3>Lesson saved</h3>
-          <p>Your lesson has been saved permanently on this device.</p>
+          <p>
+            Your lesson has been saved permanently on this device.
+          </p>
         </div>
       )}
 
       <div className="lesson-card">
         <h3>Date</h3>
+
         <input
           className="progress-select"
           type="date"
           value={lessonDate}
-          onChange={(event) => setLessonDate(event.target.value)}
+          onChange={(event) =>
+            setLessonDate(event.target.value)
+          }
         />
       </div>
 
       <div className="lesson-card spaced-card">
         <h3>Duration in minutes</h3>
+
         <input
           className="progress-select"
           type="number"
@@ -743,10 +804,13 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>Road type</h3>
+
         <select
           className="progress-select"
           value={roadType}
-          onChange={(event) => setRoadType(event.target.value)}
+          onChange={(event) =>
+            setRoadType(event.target.value)
+          }
         >
           <option>Quiet residential roads</option>
           <option>Industrial estate</option>
@@ -760,12 +824,15 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>Lesson objectives</h3>
+
         <textarea
           className="progress-select"
           rows={4}
           placeholder="What are you planning to practise?"
           value={objectives}
-          onChange={(event) => setObjectives(event.target.value)}
+          onChange={(event) =>
+            setObjectives(event.target.value)
+          }
         />
       </div>
 
@@ -800,34 +867,43 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>What went well?</h3>
+
         <textarea
           className="progress-select"
           rows={4}
           placeholder="Record strengths and improvements."
           value={wentWell}
-          onChange={(event) => setWentWell(event.target.value)}
+          onChange={(event) =>
+            setWentWell(event.target.value)
+          }
         />
       </div>
 
       <div className="lesson-card spaced-card">
         <h3>What needs more work?</h3>
+
         <textarea
           className="progress-select"
           rows={4}
           placeholder="Record mistakes, prompts or areas lacking confidence."
           value={needsWork}
-          onChange={(event) => setNeedsWork(event.target.value)}
+          onChange={(event) =>
+            setNeedsWork(event.target.value)
+          }
         />
       </div>
 
       <div className="lesson-card spaced-card">
         <h3>Recommended next lesson</h3>
+
         <textarea
           className="progress-select"
           rows={3}
           placeholder="What should you focus on next time?"
           value={nextLesson}
-          onChange={(event) => setNextLesson(event.target.value)}
+          onChange={(event) =>
+            setNextLesson(event.target.value)
+          }
         />
       </div>
 
@@ -840,6 +916,7 @@ function App() {
           <strong>Save lesson</strong>
           <small>Add this session to Emily’s lesson history</small>
         </span>
+
         <span>›</span>
       </button>
     </section>
@@ -852,6 +929,7 @@ function App() {
 
       <div className="lesson-card skills-summary">
         <h3>{overallProgress}% independently achieved</h3>
+
         <p>
           {completedSkills} of 27 skills are currently marked
           Independent or Reflection.
@@ -881,25 +959,29 @@ function App() {
 
               {lesson.objectives && (
                 <p>
-                  <strong>Objectives:</strong> {lesson.objectives}
+                  <strong>Objectives:</strong>{' '}
+                  {lesson.objectives}
                 </p>
               )}
 
               {lesson.wentWell && (
                 <p>
-                  <strong>Went well:</strong> {lesson.wentWell}
+                  <strong>Went well:</strong>{' '}
+                  {lesson.wentWell}
                 </p>
               )}
 
               {lesson.needsWork && (
                 <p>
-                  <strong>Needs work:</strong> {lesson.needsWork}
+                  <strong>Needs work:</strong>{' '}
+                  {lesson.needsWork}
                 </p>
               )}
 
               {lesson.nextLesson && (
                 <p>
-                  <strong>Next lesson:</strong> {lesson.nextLesson}
+                  <strong>Next lesson:</strong>{' '}
+                  {lesson.nextLesson}
                 </p>
               )}
 
@@ -935,6 +1017,7 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>Offline saving</h3>
+
         <p>
           Skill progress and lesson history are automatically saved
           on this device.
@@ -943,9 +1026,10 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>Backup and restore</h3>
+
         <p>
-          Download a backup before changing devices or clearing browser
-          data.
+          Download a backup before changing devices or clearing
+          browser data.
         </p>
 
         <button
@@ -957,6 +1041,7 @@ function App() {
             <strong>Download backup</strong>
             <small>Save Emily’s current JackTrack data</small>
           </span>
+
           <span>↓</span>
         </button>
 
@@ -995,10 +1080,61 @@ function App() {
         )}
       </div>
 
+      <div
+        className="lesson-card spaced-card"
+        style={{
+          borderColor: '#fecaca',
+          background: '#fffafa',
+        }}
+      >
+        <h3 style={{ color: '#b91c1c' }}>
+          Reset learner data
+        </h3>
+
+        <p>
+          Permanently delete all of Emily’s skill progress and
+          lesson history from this device. Download a backup first
+          if the data may be needed again.
+        </p>
+
+        <button
+          type="button"
+          onClick={resetLearnerData}
+          style={{
+            width: '100%',
+            padding: '13px 16px',
+            border: '1px solid #dc2626',
+            borderRadius: '14px',
+            background: '#ffffff',
+            color: '#dc2626',
+            fontWeight: 800,
+            cursor: 'pointer',
+          }}
+        >
+          Reset Emily’s data
+        </button>
+
+        {resetMessage && (
+          <p
+            style={{
+              marginTop: '14px',
+              marginBottom: 0,
+              color: resetMessage.includes('has been reset')
+                ? '#166534'
+                : '#b91c1c',
+              fontWeight: 700,
+            }}
+          >
+            {resetMessage}
+          </p>
+        )}
+      </div>
+
       <div className="lesson-card spaced-card">
         <h3>Coming next</h3>
+
         <p>
-          Editing lessons, learner reset and GPS route recording.
+          Editing lessons, GPS route recording and route reflection.
         </p>
       </div>
     </section>
