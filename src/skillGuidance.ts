@@ -208,4 +208,278 @@ export const skillGuidance: Record<
     automaticTip:
       'Select P while holding the foot brake, apply the parking brake securely and confirm the car is fully switched off before removing the key or leaving the vehicle.',
   },
+
+  5: {
+    summary:
+      'Locate, understand and operate the car’s controls and instruments smoothly without losing attention from the road.',
+
+    covering: [
+      'Use the accelerator and brake smoothly and progressively.',
+      'Steer accurately while keeping a relaxed and controlled grip.',
+      'Operate indicators, lights, wipers, washers, demisters and heating controls.',
+      'Understand the speedometer, fuel or battery gauge and other main instruments.',
+      'Recognise important warning lights and know when it is unsafe to continue.',
+      'Use the parking brake and transmission controls correctly.',
+      'Understand any driving modes fitted to the car.',
+      'Understand driver-assistance features such as cruise control, speed limiters, lane assistance and automatic emergency braking.',
+      'Know that driver-assistance technology supports the driver but does not replace observation or responsibility.',
+      'Find essential controls without looking away from the road for too long.',
+      'Adapt safely when using an unfamiliar vehicle.',
+    ],
+
+    practiceIdeas: [
+      'While safely parked, ask the learner to identify and operate each important control.',
+      'On a quiet road, practise smooth acceleration followed by progressive braking.',
+      'Ask the learner to operate the wipers, demister and lights while maintaining safe control.',
+      'Discuss what each commonly seen dashboard warning light means.',
+      'Practise steering around gentle bends without crossing hands excessively or gripping too tightly.',
+      'Explain one driver-assistance feature and then discuss its limitations.',
+    ],
+
+    learnerQuestions: [
+      'Which controls must you be able to use without searching for them?',
+      'What should you do if an unfamiliar warning light appears?',
+      'How could looking down at a control affect your driving?',
+      'What driver-assistance features does this car have?',
+      'Why must you remain fully responsible even when assistance systems are active?',
+    ],
+
+    watchOuts: [
+      'Heavy or jerky use of the accelerator and brake.',
+      'Looking down for too long when finding controls.',
+      'Gripping the steering wheel tightly or allowing it to spin back uncontrolled.',
+      'Confusing similar controls in an unfamiliar car.',
+      'Assuming lane assistance, cruise control or automatic braking will manage hazards.',
+      'Changing settings at a time when full attention is needed elsewhere.',
+    ],
+
+    readyWhen: [
+      'The learner locates and uses essential controls with minimal distraction.',
+      'They accelerate, brake and steer smoothly and accurately.',
+      'They understand the main instruments and warning lights.',
+      'They can operate ancillary controls while maintaining safe observation and control.',
+      'They understand both the purpose and limitations of driver-assistance systems.',
+    ],
+
+    automaticTip:
+      'Practise selecting P, R, N and D correctly while stationary with the foot brake applied. Use only the right foot for the accelerator and brake unless the vehicle manufacturer specifically states otherwise.',
+  },
+
+  6: {
+    summary:
+      'Move away and stop safely, smoothly and under full control in a range of positions and gradients.',
+
+    covering: [
+      'Prepare the car correctly before moving.',
+      'Use effective mirror and blind-spot observations before moving away.',
+      'Signal only when it would help another road user.',
+      'Move away smoothly without causing others to change speed or direction.',
+      'Move away from the left and right side of the road where appropriate.',
+      'Move away safely at an angle from behind a parked vehicle.',
+      'Move away uphill and downhill under control.',
+      'Choose a safe, legal and convenient place to stop.',
+      'Use mirrors before slowing or changing position.',
+      'Stop smoothly and reasonably close to the kerb.',
+      'Secure the car correctly once stopped.',
+      'Use the MSM and PSL routines as flexible decision-making routines rather than a rushed script.',
+    ],
+
+    practiceIdeas: [
+      'Repeat short move-away and stop exercises on a quiet road.',
+      'Ask the learner to explain what they can see in each mirror and blind spot before moving.',
+      'Practise moving away after another vehicle or cyclist has passed.',
+      'Practise stopping at different safe points while judging distance from the kerb.',
+      'Progress to moving away uphill, downhill and from behind a parked car.',
+      'Ask the learner to decide whether a signal would genuinely benefit anyone.',
+    ],
+
+    learnerQuestions: [
+      'What must you check immediately before moving?',
+      'When would a signal be helpful before moving away?',
+      'How do you choose a safe place to stop?',
+      'Why should you check mirrors before slowing?',
+      'What would you do if another road user appeared during your final observation?',
+    ],
+
+    watchOuts: [
+      'Moving before completing an effective blind-spot check.',
+      'Treating mirror checks as head movements without understanding what was seen.',
+      'Signalling automatically when the signal may confuse others.',
+      'Accelerating before the learner has confirmed it is safe.',
+      'Stopping opposite junctions, across driveways or too close to hazards.',
+      'Stopping too far from or striking the kerb.',
+      'Forgetting to secure the car after stopping.',
+    ],
+
+    readyWhen: [
+      'The learner prepares, observes and moves away without prompting.',
+      'They respond correctly if the situation changes during the final checks.',
+      'They stop safely, smoothly and in a suitable position.',
+      'They can move away on gradients and from angled positions under control.',
+      'Their observations and signals are based on what is actually happening around them.',
+    ],
+
+    automaticTip:
+      'With the foot brake held, select the correct drive position, complete observations and release the parking brake when safe. Control creep with the brake and add gentle accelerator only when needed.',
+  },
+
+  7: {
+    summary:
+      'Place the vehicle correctly for the road, traffic and intended direction while maintaining safe space around it.',
+
+    covering: [
+      'Keep an appropriate normal driving position.',
+      'Allow safe clearance from parked vehicles, cyclists, pedestrians and roadside hazards.',
+      'Avoid driving unnecessarily close to the kerb or centre line.',
+      'Use the correct lane on single and multi-lane roads.',
+      'Position early for turns and other changes of direction.',
+      'Maintain an appropriate following distance.',
+      'Increase space in poor weather or when visibility is reduced.',
+      'Avoid travelling in another vehicle’s blind spot.',
+      'Understand how positioning communicates intentions to other road users.',
+      'Adjust position when passing narrowings, obstructions or vulnerable road users.',
+      'Avoid squeezing through a gap simply because the car physically fits.',
+    ],
+
+    practiceIdeas: [
+      'Use quiet roads to establish a consistent normal driving position.',
+      'Ask the learner to describe the space they are leaving around parked cars.',
+      'Practise identifying when to wait rather than enter a narrow gap.',
+      'Use different road widths to practise adjusting lateral position.',
+      'Practise maintaining at least a two-second following gap in suitable conditions.',
+      'Ask the learner to choose lanes early using signs and road markings.',
+    ],
+
+    learnerQuestions: [
+      'What risks might come from the parked vehicles ahead?',
+      'How much space should you leave and why?',
+      'When should you wait rather than continue through a narrowing?',
+      'How does weather affect your following distance?',
+      'What might your road position communicate to someone else?',
+    ],
+
+    watchOuts: [
+      'Driving too close to parked vehicles and failing to allow for opening doors.',
+      'Drifting towards the kerb or centre line.',
+      'Following another vehicle too closely.',
+      'Changing lanes late or without a clear reason.',
+      'Positioning for a turn so early that it misleads others.',
+      'Trying to maintain a fixed position when conditions require adjustment.',
+      'Passing cyclists or pedestrians without sufficient space.',
+    ],
+
+    readyWhen: [
+      'The learner maintains a safe and stable position without constant correction.',
+      'They create appropriate clearance around vulnerable road users and hazards.',
+      'They choose and maintain lanes correctly.',
+      'They adjust following distance for speed, weather and visibility.',
+      'They recognise when limited space means they should slow or wait.',
+    ],
+  },
+
+  8: {
+    summary:
+      'Use mirrors and direct observation to maintain an accurate picture of what is happening around the vehicle.',
+
+    covering: [
+      'Understand the view provided by the interior and exterior mirrors.',
+      'Understand that mirrors leave blind spots.',
+      'Check mirrors before changing speed, direction or road position.',
+      'Use the correct mirrors for the intended action.',
+      'Interpret the speed, distance and intentions of following traffic.',
+      'Act appropriately on what is seen rather than merely moving the head.',
+      'Use direct observation where mirrors do not provide enough information.',
+      'Understand that convex mirrors can make vehicles appear further away.',
+      'Recheck mirrors when a developing situation may have changed.',
+      'Maintain awareness of cyclists, motorcyclists and other easily hidden road users.',
+    ],
+
+    practiceIdeas: [
+      'Ask the learner to name which mirrors they need before each planned action.',
+      'Pause after a mirror check and ask what they actually saw.',
+      'Practise checking mirrors before braking, signalling, turning and changing lanes.',
+      'Identify vehicles entering and leaving the learner’s blind spots.',
+      'Compare the apparent distance of a vehicle in the interior and exterior mirrors.',
+      'Ask the learner to comment when a following vehicle affects their decision.',
+    ],
+
+    learnerQuestions: [
+      'Which mirrors are most relevant for this action?',
+      'What did you see and how does it affect your plan?',
+      'Where are this car’s blind spots?',
+      'Why might a vehicle look further away in an exterior mirror?',
+      'When would you need direct observation as well as mirrors?',
+    ],
+
+    watchOuts: [
+      'Performing mirror checks after beginning the manoeuvre.',
+      'Moving the head without properly processing the view.',
+      'Checking only one mirror automatically for every action.',
+      'Failing to respond to a fast-approaching vehicle.',
+      'Forgetting blind spots when moving away or changing position.',
+      'Staring into mirrors for too long and neglecting the road ahead.',
+    ],
+
+    readyWhen: [
+      'The learner checks the appropriate mirrors before every relevant change.',
+      'They accurately explain what they have seen.',
+      'They alter their plan when mirror information makes that necessary.',
+      'They use direct observations to cover blind spots.',
+      'Their mirror use is timely, brief and integrated naturally into their driving.',
+    ],
+  },
+
+  9: {
+    summary:
+      'Communicate intentions clearly using indicators, brake lights, road position and other lawful signals without misleading anyone.',
+
+    covering: [
+      'Understand why signals help other road users plan safely.',
+      'Signal clearly and early enough to be useful.',
+      'Avoid signalling so early that it could mislead others.',
+      'Use mirrors before deciding whether and when to signal.',
+      'Cancel indicators after completing the manoeuvre.',
+      'Recognise when a signal is unnecessary.',
+      'Understand signals from other vehicles, including indicators, brake lights, reversing lights and hazard lights.',
+      'Understand signals from police officers, traffic officers, school crossing patrols and other authorised people.',
+      'Know the correct use of the horn and flashing headlights.',
+      'Understand that road position and speed can reinforce or contradict an indicator.',
+      'Never rely completely on another road user’s signal.',
+    ],
+
+    practiceIdeas: [
+      'Approach several junctions and ask the learner to decide whether a signal is required.',
+      'Compare an appropriately timed signal with one that would be too early or too late.',
+      'Practise recognising brake lights, reversing lights and hazard warning lights.',
+      'Ask the learner to identify how road position supports the signal being given.',
+      'Discuss situations where another driver’s indicator may be misleading.',
+      'Practise checking that the indicator has cancelled after turns and roundabouts.',
+    ],
+
+    learnerQuestions: [
+      'Who would benefit from a signal here?',
+      'Could this signal be misunderstood because of another junction or entrance?',
+      'What does that other vehicle’s signal suggest, and can you rely on it?',
+      'How does your position support the signal you are giving?',
+      'When may the horn or flashing headlights legally be used?',
+    ],
+
+    watchOuts: [
+      'Signalling before checking mirrors.',
+      'Giving signals too late to help anyone.',
+      'Signalling too early near another road or entrance.',
+      'Leaving indicators on after the manoeuvre.',
+      'Using a signal as a substitute for observation.',
+      'Assuming another vehicle will definitely act according to its indicator.',
+      'Using the horn or headlights to express irritation or give way.',
+    ],
+
+    readyWhen: [
+      'The learner signals only when useful and does so at an effective time.',
+      'Their mirrors, position and speed support the signal.',
+      'They cancel signals and recognise when an indicator has remained active.',
+      'They correctly interpret common signals from others while remaining cautious.',
+      'They avoid giving misleading or unnecessary signals.',
+    ],
+  },
 }
