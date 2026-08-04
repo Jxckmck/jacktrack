@@ -1,5 +1,8 @@
-import { ChangeEvent, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import './App.css'
+import GpsRecorder from './GpsRecorder'
+import type { RoutePoint } from './GpsRecorder'
 
 type Tab = 'home' | 'skills' | 'lesson' | 'progress' | 'more'
 
@@ -32,6 +35,9 @@ type Lesson = {
   wentWell: string
   needsWork: string
   nextLesson: string
+  route?: RoutePoint[]
+  gpsDurationSeconds?: number
+  gpsDistanceMiles?: number
 }
 
 type SavedData = {
@@ -199,7 +205,9 @@ const loadSavedData = (): SavedData => {
   try {
     const savedData = localStorage.getItem(STORAGE_KEY)
 
-    if (!savedData) return defaultData
+    if (!savedData) {
+      return defaultData
+    }
 
     const parsedData = JSON.parse(savedData) as Partial<SavedData>
 
@@ -225,6 +233,24 @@ const formatLessonDate = (date: string) => {
     month: 'long',
     year: 'numeric',
   })
+}
+
+const formatGpsTime = (seconds = 0) => {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainingSeconds = seconds % 60
+
+  if (hours > 0) {
+    return `${hours}:${minutes
+      .toString()
+      .padStart(2, '0')}:${remainingSeconds
+      .toString()
+      .padStart(2, '0')}`
+  }
+
+  return `${minutes}:${remainingSeconds
+    .toString()
+    .padStart(2, '0')}`
 }
 
 function getProgressColour(percentage: number) {
@@ -300,6 +326,14 @@ function App() {
   const [needsWork, setNeedsWork] = useState('')
   const [nextLesson, setNextLesson] = useState('')
   const [lessonSaved, setLessonSaved] = useState(false)
+
+  const [recordedRoute, setRecordedRoute] =
+    useState<RoutePoint[]>([])
+  const [gpsDurationSeconds, setGpsDurationSeconds] =
+    useState(0)
+  const [gpsDistanceMiles, setGpsDistanceMiles] =
+    useState(0)
+
   const [backupMessage, setBackupMessage] = useState('')
   const [resetMessage, setResetMessage] = useState('')
 
@@ -342,7 +376,7 @@ function App() {
   ).length
 
   const overallProgress = Math.round(
-    (completedSkills / 27) * 100,
+    (completedSkills / allSkills.length) * 100,
   )
 
   const toggleLessonSkill = (skillId: number) => {
@@ -363,7 +397,7 @@ function App() {
 
   const saveLesson = () => {
     if (!lessonDuration.trim()) {
-      alert('Please enter the lesson duration.')
+      window.alert('Please enter the lesson duration.')
       return
     }
 
@@ -377,6 +411,9 @@ function App() {
       wentWell,
       needsWork,
       nextLesson,
+      route: recordedRoute,
+      gpsDurationSeconds,
+      gpsDistanceMiles,
     }
 
     setLessons((currentLessons) => [
@@ -396,6 +433,9 @@ function App() {
     setWentWell('')
     setNeedsWork('')
     setNextLesson('')
+    setRecordedRoute([])
+    setGpsDurationSeconds(0)
+    setGpsDistanceMiles(0)
   }
 
   const deleteLesson = (lesson: Lesson) => {
@@ -438,7 +478,7 @@ function App() {
     if (editingLessonId === null) return
 
     if (!editDuration.trim()) {
-      alert('Please enter the lesson duration.')
+      window.alert('Please enter the lesson duration.')
       return
     }
 
@@ -585,6 +625,9 @@ function App() {
     setWentWell('')
     setNeedsWork('')
     setNextLesson('')
+    setRecordedRoute([])
+    setGpsDurationSeconds(0)
+    setGpsDistanceMiles(0)
     setBackupMessage('')
     setResetMessage('Emily’s learner data has been reset.')
   }
@@ -659,6 +702,14 @@ function App() {
             <span>
               {lessons[0].skills.length} skills practised
             </span>
+
+            {(lessons[0].route?.length ?? 0) > 0 && (
+              <p style={{ marginTop: '12px', marginBottom: 0 }}>
+                GPS route ·{' '}
+                {(lessons[0].gpsDistanceMiles ?? 0).toFixed(2)}{' '}
+                miles
+              </p>
+            )}
           </div>
         </section>
       )}
@@ -678,7 +729,7 @@ function App() {
         </button>
 
         <p className="section-label">
-          Skill {selectedSkill.id} of 27
+          Skill {selectedSkill.id} of {allSkills.length}
         </p>
 
         <h1>{selectedSkill.name}</h1>
@@ -749,7 +800,10 @@ function App() {
         </p>
 
         <div className="lesson-card skills-summary">
-          <h3>{completedSkills} of 27 independently achieved</h3>
+          <h3>
+            {completedSkills} of {allSkills.length} independently
+            achieved
+          </h3>
 
           <p>
             Skills count towards completion when they reach
@@ -854,7 +908,47 @@ function App() {
         </div>
       )}
 
-      <div className="lesson-card">
+      <GpsRecorder
+        onRouteFinished={(
+          route,
+          durationSeconds,
+          distanceMiles,
+        ) => {
+          setRecordedRoute(route)
+          setGpsDurationSeconds(durationSeconds)
+          setGpsDistanceMiles(distanceMiles)
+
+          if (
+            durationSeconds > 0 &&
+            !lessonDuration.trim()
+          ) {
+            setLessonDuration(
+              Math.max(
+                1,
+                Math.round(durationSeconds / 60),
+              ).toString(),
+            )
+          }
+        }}
+      />
+
+      {recordedRoute.length > 0 && (
+        <div className="lesson-card spaced-card">
+          <h3>Route ready</h3>
+
+          <p>
+            {recordedRoute.length} GPS points ·{' '}
+            {gpsDistanceMiles.toFixed(2)} miles ·{' '}
+            {formatGpsTime(gpsDurationSeconds)}
+          </p>
+
+          <span>
+            This route will be stored when you save the lesson.
+          </span>
+        </div>
+      )}
+
+      <div className="lesson-card spaced-card">
         <h3>Date</h3>
 
         <input
@@ -1197,8 +1291,8 @@ function App() {
         <h3>{overallProgress}% independently achieved</h3>
 
         <p>
-          {completedSkills} of 27 skills are currently marked
-          Independent or Reflection.
+          {completedSkills} of {allSkills.length} skills are
+          currently marked Independent or Reflection.
         </p>
       </div>
 
@@ -1226,6 +1320,18 @@ function App() {
                   <p>
                     {lesson.duration} minutes · {lesson.roadType}
                   </p>
+
+                  {(lesson.route?.length ?? 0) > 0 && (
+                    <p>
+                      <strong>GPS route:</strong>{' '}
+                      {(lesson.gpsDistanceMiles ?? 0).toFixed(2)}{' '}
+                      miles ·{' '}
+                      {formatGpsTime(
+                        lesson.gpsDurationSeconds ?? 0,
+                      )}{' '}
+                      · {lesson.route?.length ?? 0} points
+                    </p>
+                  )}
 
                   {lesson.objectives && (
                     <p>
@@ -1312,8 +1418,8 @@ function App() {
         <h3>Offline saving</h3>
 
         <p>
-          Skill progress and lesson history are automatically saved
-          on this device.
+          Skill progress, lesson history and recorded routes are
+          automatically saved on this device.
         </p>
       </div>
 
@@ -1385,9 +1491,9 @@ function App() {
         </h3>
 
         <p>
-          Permanently delete all of Emily’s skill progress and
-          lesson history from this device. Download a backup first
-          if the data may be needed again.
+          Permanently delete all of Emily’s skill progress, lesson
+          history and recorded routes from this device. Download a
+          backup first if the data may be needed again.
         </p>
 
         <button
@@ -1427,7 +1533,8 @@ function App() {
         <h3>Coming next</h3>
 
         <p>
-          GPS route recording, route maps and reflection markers.
+          Route maps, lesson reflection markers and Street View
+          review links.
         </p>
       </div>
     </section>
