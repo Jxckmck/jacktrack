@@ -440,8 +440,29 @@ textarea.progress-select {
   overflow: hidden;
 }
 
+.map-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.map-card-heading p {
+  margin-bottom: 0;
+}
+
+.reflection-count {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #f3e8ff;
+  color: #6d28d9 !important;
+  font-size: 11px !important;
+}
+
 .route-map-wrapper {
   overflow: hidden;
+  margin-top: 16px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: #eef0f3;
@@ -453,6 +474,7 @@ textarea.progress-select {
 }
 
 .map-unavailable {
+  margin-top: 16px;
   padding: 22px;
   border: 1px dashed #cbd5e1;
   border-radius: 16px;
@@ -467,6 +489,113 @@ textarea.progress-select {
 
 .map-unavailable p {
   margin-bottom: 0;
+}
+
+.marker-mode-button {
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px 15px;
+  border: 1px solid #7c3aed;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #6d28d9;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.marker-mode-button.active {
+  background: #7c3aed;
+  color: #ffffff;
+}
+
+.marker-instruction {
+  margin-top: 12px;
+  margin-bottom: 0 !important;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #f3e8ff;
+  color: #6d28d9 !important;
+  text-align: center;
+  font-weight: 700;
+}
+
+.reflection-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.reflection-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e9d5ff;
+  border-radius: 15px;
+  background: #faf5ff;
+}
+
+.reflection-number {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: #7c3aed;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.reflection-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.reflection-content strong,
+.reflection-content > span {
+  display: block;
+}
+
+.reflection-content strong {
+  margin-bottom: 6px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.reflection-content > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.reflection-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 11px;
+}
+
+.reflection-actions a,
+.reflection-actions button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.reflection-actions button {
+  color: #dc2626;
+}
+
+.street-view-note {
+  margin-top: 15px;
+  margin-bottom: 0 !important;
+  font-size: 12px !important;
 }
 
 .leaflet-container {
@@ -630,6 +759,15 @@ textarea.progress-select {
 
   .route-map {
     height: 300px;
+  }
+
+  .map-card-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reflection-count {
+    align-self: flex-start;
   }
 }
 

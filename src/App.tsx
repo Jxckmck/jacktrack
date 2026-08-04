@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import './App.css'
 import GpsRecorder from './GpsRecorder'
 import type { RoutePoint } from './GpsRecorder'
 import RouteMap from './RouteMap'
+import type { ReflectionMarker } from './RouteMap'
 
 type Tab = 'home' | 'skills' | 'lesson' | 'progress' | 'more'
 
@@ -39,6 +40,7 @@ type Lesson = {
   route?: RoutePoint[]
   gpsDurationSeconds?: number
   gpsDistanceMiles?: number
+  reflectionMarkers?: ReflectionMarker[]
 }
 
 type SavedData = {
@@ -256,6 +258,9 @@ const getSkillName = (skillId: number) =>
   allSkills.find((skill) => skill.id === skillId)?.name ??
   `Skill ${skillId}`
 
+const createStreetViewUrl = (marker: ReflectionMarker) =>
+  `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${marker.latitude},${marker.longitude}`
+
 function getProgressColour(percentage: number) {
   if (percentage < 40) return '#dc2626'
   if (percentage < 75) return '#f59e0b'
@@ -311,6 +316,7 @@ function App() {
     useState<DrivingSkill | null>(null)
   const [selectedLessonId, setSelectedLessonId] =
     useState<number | null>(null)
+  const [isAddingMarker, setIsAddingMarker] = useState(false)
 
   const [progress, setProgress] =
     useState<Record<number, ProgressLevel>>(initialData.progress)
@@ -417,6 +423,7 @@ function App() {
       route: recordedRoute,
       gpsDurationSeconds,
       gpsDistanceMiles,
+      reflectionMarkers: [],
     }
 
     setLessons((currentLessons) => [
@@ -457,6 +464,7 @@ function App() {
     )
 
     setEditingLessonId(null)
+    setIsAddingMarker(false)
 
     if (selectedLessonId === lesson.id) {
       setSelectedLessonId(null)
@@ -502,6 +510,70 @@ function App() {
     )
 
     setEditingLessonId(null)
+  }
+
+  const addReflectionMarker = useCallback(
+    (latitude: number, longitude: number) => {
+      if (selectedLessonId === null) return
+
+      const note = window.prompt(
+        'What happened at this point?\n\nExample: Late mirror check or good roundabout positioning.',
+      )
+
+      if (!note?.trim()) {
+        setIsAddingMarker(false)
+        return
+      }
+
+      const newMarker: ReflectionMarker = {
+        id: Date.now(),
+        latitude,
+        longitude,
+        note: note.trim(),
+        createdAt: Date.now(),
+      }
+
+      setLessons((currentLessons) =>
+        currentLessons.map((lesson) =>
+          lesson.id === selectedLessonId
+            ? {
+                ...lesson,
+                reflectionMarkers: [
+                  ...(lesson.reflectionMarkers ?? []),
+                  newMarker,
+                ],
+              }
+            : lesson,
+        ),
+      )
+
+      setIsAddingMarker(false)
+    },
+    [selectedLessonId],
+  )
+
+  const deleteReflectionMarker = (
+    lessonId: number,
+    markerId: number,
+  ) => {
+    const confirmed = window.confirm(
+      'Delete this reflection marker?',
+    )
+
+    if (!confirmed) return
+
+    setLessons((currentLessons) =>
+      currentLessons.map((lesson) =>
+        lesson.id === lessonId
+          ? {
+              ...lesson,
+              reflectionMarkers: (
+                lesson.reflectionMarkers ?? []
+              ).filter((marker) => marker.id !== markerId),
+            }
+          : lesson,
+      ),
+    )
   }
 
   const exportBackup = () => {
@@ -592,6 +664,7 @@ function App() {
       setLessons(validLessons)
       setSelectedLessonId(null)
       setEditingLessonId(null)
+      setIsAddingMarker(false)
       setBackupMessage('Backup restored successfully.')
       setResetMessage('')
     } catch {
@@ -622,6 +695,7 @@ function App() {
     setSelectedSkill(null)
     setSelectedLessonId(null)
     setEditingLessonId(null)
+    setIsAddingMarker(false)
     setRecordedRoute([])
     setGpsDurationSeconds(0)
     setGpsDistanceMiles(0)
@@ -632,6 +706,7 @@ function App() {
   const navigateToLessonSummary = (lessonId: number) => {
     setSelectedLessonId(lessonId)
     setEditingLessonId(null)
+    setIsAddingMarker(false)
     setActiveTab('progress')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1167,8 +1242,18 @@ function App() {
     )
 
     if (!lesson) {
-      setSelectedLessonId(null)
-      return null
+      return (
+        <section>
+          <button
+            className="text-button"
+            onClick={() => setSelectedLessonId(null)}
+          >
+            ‹ Back to lesson history
+          </button>
+
+          <h1>Lesson not found</h1>
+        </section>
+      )
     }
 
     if (editingLessonId === lesson.id) {
@@ -1186,11 +1271,16 @@ function App() {
       )
     }
 
+    const markers = lesson.reflectionMarkers ?? []
+
     return (
       <section>
         <button
           className="text-button"
-          onClick={() => setSelectedLessonId(null)}
+          onClick={() => {
+            setSelectedLessonId(null)
+            setIsAddingMarker(false)
+          }}
         >
           ‹ Back to lesson history
         </button>
@@ -1236,14 +1326,103 @@ function App() {
 
         {(lesson.route?.length ?? 0) > 0 && (
           <div className="lesson-card spaced-card map-card">
-            <h3>Lesson route</h3>
+            <div className="map-card-heading">
+              <div>
+                <h3>Lesson route</h3>
+                <p>
+                  Internet connection is required to load the map.
+                </p>
+              </div>
 
-            <p>
-              Internet connection required to load the map. The
-              recorded route remains stored offline.
+              <span className="reflection-count">
+                {markers.length} reflections
+              </span>
+            </div>
+
+            <RouteMap
+              route={lesson.route ?? []}
+              markers={markers}
+              isAddingMarker={isAddingMarker}
+              onAddMarker={addReflectionMarker}
+            />
+
+            <button
+              type="button"
+              className={
+                isAddingMarker
+                  ? 'marker-mode-button active'
+                  : 'marker-mode-button'
+              }
+              onClick={() =>
+                setIsAddingMarker((currentValue) => !currentValue)
+              }
+            >
+              {isAddingMarker
+                ? 'Cancel adding marker'
+                : 'Add reflection marker'}
+            </button>
+
+            {isAddingMarker && (
+              <p className="marker-instruction">
+                Tap the exact point on the route where the reflection
+                happened.
+              </p>
+            )}
+          </div>
+        )}
+
+        {markers.length > 0 && (
+          <div className="lesson-card spaced-card">
+            <h3>Route reflections</h3>
+
+            <div className="reflection-list">
+              {markers.map((marker, index) => (
+                <div
+                  className="reflection-item"
+                  key={marker.id}
+                >
+                  <div className="reflection-number">
+                    {index + 1}
+                  </div>
+
+                  <div className="reflection-content">
+                    <strong>{marker.note}</strong>
+
+                    <span>
+                      {marker.latitude.toFixed(5)},{' '}
+                      {marker.longitude.toFixed(5)}
+                    </span>
+
+                    <div className="reflection-actions">
+                      <a
+                        href={createStreetViewUrl(marker)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open Street View
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          deleteReflectionMarker(
+                            lesson.id,
+                            marker.id,
+                          )
+                        }
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="street-view-note">
+              Street View requires an internet connection and may not
+              be available at every location.
             </p>
-
-            <RouteMap route={lesson.route ?? []} />
           </div>
         )}
 
@@ -1371,6 +1550,9 @@ function App() {
                           2,
                         )} GPS miles`
                       : ''}
+                    {(lesson.reflectionMarkers?.length ?? 0) > 0
+                      ? ` · ${lesson.reflectionMarkers?.length} reflections`
+                      : ''}
                   </small>
                 </span>
 
@@ -1396,8 +1578,9 @@ function App() {
       <div className="lesson-card spaced-card">
         <h3>Offline saving</h3>
         <p>
-          Progress, lessons and GPS routes are stored on this device.
-          Internet is only required to display route maps.
+          Progress, lessons, GPS routes and reflection markers are
+          stored on this device. Internet is only required for maps
+          and Street View.
         </p>
       </div>
 
@@ -1441,7 +1624,8 @@ function App() {
         <h3>Reset learner data</h3>
 
         <p>
-          Permanently delete all progress, lessons and routes.
+          Permanently delete all progress, lessons, routes and
+          reflection markers.
         </p>
 
         <button
@@ -1477,6 +1661,7 @@ function App() {
   const changeTab = (tab: Tab) => {
     setActiveTab(tab)
     setSelectedSkill(null)
+    setIsAddingMarker(false)
 
     if (tab !== 'progress') {
       setSelectedLessonId(null)

@@ -3,11 +3,30 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { RoutePoint } from './GpsRecorder'
 
-type RouteMapProps = {
-  route: RoutePoint[]
+export type ReflectionMarker = {
+  id: number
+  latitude: number
+  longitude: number
+  note: string
+  createdAt: number
 }
 
-function RouteMap({ route }: RouteMapProps) {
+type RouteMapProps = {
+  route: RoutePoint[]
+  markers?: ReflectionMarker[]
+  isAddingMarker?: boolean
+  onAddMarker?: (
+    latitude: number,
+    longitude: number,
+  ) => void
+}
+
+function RouteMap({
+  route,
+  markers = [],
+  isAddingMarker = false,
+  onAddMarker,
+}: RouteMapProps) {
   const mapElementRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
 
@@ -108,6 +127,31 @@ function RouteMap({ route }: RouteMapProps) {
       .bindTooltip('Finish')
       .addTo(map)
 
+    markers.forEach((marker, index) => {
+      L.circleMarker(
+        [marker.latitude, marker.longitude],
+        {
+          radius: 8,
+          color: '#ffffff',
+          weight: 3,
+          fillColor: '#7c3aed',
+          fillOpacity: 1,
+        },
+      )
+        .bindPopup(
+          `<strong>Reflection ${index + 1}</strong><br>${marker.note}`,
+        )
+        .addTo(map)
+    })
+
+    if (isAddingMarker && onAddMarker) {
+      map.getContainer().style.cursor = 'crosshair'
+
+      map.on('click', (event: L.LeafletMouseEvent) => {
+        onAddMarker(event.latlng.lat, event.latlng.lng)
+      })
+    }
+
     if (coordinates.length === 1) {
       map.setView(startPoint, 16)
     } else {
@@ -124,7 +168,14 @@ function RouteMap({ route }: RouteMapProps) {
       map.remove()
       mapRef.current = null
     }
-  }, [route, isOnline, mapError])
+  }, [
+    route,
+    markers,
+    isOnline,
+    mapError,
+    isAddingMarker,
+    onAddMarker,
+  ])
 
   if (route.length === 0) {
     return null
@@ -136,8 +187,8 @@ function RouteMap({ route }: RouteMapProps) {
         <strong>Internet connection required</strong>
 
         <p>
-          The recorded route is saved offline, but an internet
-          connection is needed to load the map.
+          The route and reflection markers are saved offline, but an
+          internet connection is needed to load the map.
         </p>
       </div>
     )
@@ -149,8 +200,8 @@ function RouteMap({ route }: RouteMapProps) {
         <strong>Map could not be loaded</strong>
 
         <p>
-          The route remains saved. Check the internet connection and
-          reopen this lesson to try again.
+          The recorded route remains saved. Check the internet
+          connection and reopen this lesson.
         </p>
       </div>
     )
