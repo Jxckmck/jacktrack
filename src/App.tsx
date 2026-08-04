@@ -22,6 +22,18 @@ type SkillGroup = {
   skills: DrivingSkill[]
 }
 
+type Lesson = {
+  id: number
+  date: string
+  duration: string
+  roadType: string
+  objectives: string
+  skills: number[]
+  wentWell: string
+  needsWork: string
+  nextLesson: string
+}
+
 const skillGroups: SkillGroup[] = [
   {
     name: '1. The basics',
@@ -140,23 +152,17 @@ const skillGroups: SkillGroup[] = [
   },
 ]
 
+const allSkills = skillGroups.flatMap((group) => group.skills)
+
 const defaultProgress: Record<number, ProgressLevel> = {}
 
-skillGroups.forEach((group) => {
-  group.skills.forEach((skill) => {
-    defaultProgress[skill.id] = 'Not started'
-  })
+allSkills.forEach((skill) => {
+  defaultProgress[skill.id] = 'Not started'
 })
 
 function getProgressColour(percentage: number) {
-  if (percentage < 40) {
-    return '#dc2626'
-  }
-
-  if (percentage < 75) {
-    return '#f59e0b'
-  }
-
+  if (percentage < 40) return '#dc2626'
+  if (percentage < 75) return '#f59e0b'
   return '#16a34a'
 }
 
@@ -209,6 +215,20 @@ function App() {
   const [progress, setProgress] =
     useState<Record<number, ProgressLevel>>(defaultProgress)
 
+  const [lessons, setLessons] = useState<Lesson[]>([])
+
+  const [lessonDate, setLessonDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  )
+  const [lessonDuration, setLessonDuration] = useState('')
+  const [roadType, setRoadType] = useState('Quiet residential roads')
+  const [objectives, setObjectives] = useState('')
+  const [selectedLessonSkills, setSelectedLessonSkills] = useState<number[]>([])
+  const [wentWell, setWentWell] = useState('')
+  const [needsWork, setNeedsWork] = useState('')
+  const [nextLesson, setNextLesson] = useState('')
+  const [lessonSaved, setLessonSaved] = useState(false)
+
   const updateProgress = (
     skillId: number,
     level: ProgressLevel,
@@ -228,6 +248,47 @@ function App() {
     (completedSkills / 27) * 100,
   )
 
+  const toggleLessonSkill = (skillId: number) => {
+    setSelectedLessonSkills((currentSkills) =>
+      currentSkills.includes(skillId)
+        ? currentSkills.filter((id) => id !== skillId)
+        : [...currentSkills, skillId],
+    )
+  }
+
+  const saveLesson = () => {
+    if (!lessonDuration.trim()) {
+      alert('Please enter the lesson duration.')
+      return
+    }
+
+    const newLesson: Lesson = {
+      id: Date.now(),
+      date: lessonDate,
+      duration: lessonDuration,
+      roadType,
+      objectives,
+      skills: selectedLessonSkills,
+      wentWell,
+      needsWork,
+      nextLesson,
+    }
+
+    setLessons((currentLessons) => [newLesson, ...currentLessons])
+    setLessonSaved(true)
+
+    setTimeout(() => {
+      setLessonSaved(false)
+    }, 2500)
+
+    setLessonDuration('')
+    setObjectives('')
+    setSelectedLessonSkills([])
+    setWentWell('')
+    setNeedsWork('')
+    setNextLesson('')
+  }
+
   const renderHome = () => (
     <>
       <header className="header">
@@ -243,9 +304,7 @@ function App() {
         <div>
           <span className="badge">Automatic learner</span>
           <h2>Building confidence</h2>
-          <p>
-            Keep each session calm, focused and consistent.
-          </p>
+          <p>Keep each session calm, focused and consistent.</p>
         </div>
 
         <ProgressRing percentage={overallProgress} />
@@ -269,22 +328,39 @@ function App() {
 
         <div className="lesson-card">
           <h3>Quiet-road control session</h3>
-
           <p>
-            Practise observations, smooth brake release and
-            controlled stopping.
+            Practise observations, smooth brake release and controlled stopping.
           </p>
-
           <span>30–40 minutes</span>
         </div>
       </section>
+
+      {lessons.length > 0 && (
+        <section className="section">
+          <p className="section-label">Latest lesson</p>
+          <h2>{lessons[0].date}</h2>
+
+          <div className="lesson-card">
+            <h3>
+              {lessons[0].duration} minutes · {lessons[0].roadType}
+            </h3>
+
+            <p>
+              {lessons[0].wentWell ||
+                'Lesson saved. Add reflection notes next time for a fuller summary.'}
+            </p>
+
+            <span>
+              {lessons[0].skills.length} skills practised
+            </span>
+          </div>
+        </section>
+      )}
     </>
   )
 
   const renderSkillDetail = () => {
-    if (!selectedSkill) {
-      return null
-    }
+    if (!selectedSkill) return null
 
     const levels: ProgressLevel[] = [
       'Not started',
@@ -314,8 +390,7 @@ function App() {
           <h3>Current progress</h3>
 
           <p>
-            Choose the level that best reflects Emily’s current
-            ability.
+            Choose the level that best reflects Emily’s current ability.
           </p>
 
           <select
@@ -346,16 +421,16 @@ function App() {
         <div className="lesson-card spaced-card">
           <h3>Teacher watch-outs</h3>
           <p>
-            Watch for rushed observations, excessive prompting and
-            habits that prevent Emily from making her own decisions.
+            Watch for rushed observations, excessive prompting and habits that
+            prevent Emily from making her own decisions.
           </p>
         </div>
 
         <div className="lesson-card spaced-card">
           <h3>Ready to progress when</h3>
           <p>
-            Emily can demonstrate the skill safely and consistently
-            in different situations with progressively less help.
+            Emily can demonstrate the skill safely and consistently in
+            different situations with progressively less help.
           </p>
         </div>
       </section>
@@ -363,9 +438,7 @@ function App() {
   }
 
   const renderSkills = () => {
-    if (selectedSkill) {
-      return renderSkillDetail()
-    }
+    if (selectedSkill) return renderSkillDetail()
 
     return (
       <section className="page-placeholder">
@@ -373,16 +446,15 @@ function App() {
         <h1>Driving skills</h1>
 
         <p>
-          Track Emily’s development through all 27 recommended
-          learning skills.
+          Track Emily’s development through all 27 recommended learning skills.
         </p>
 
         <div className="lesson-card skills-summary">
           <h3>{completedSkills} of 27 independently achieved</h3>
 
           <p>
-            Skills count towards completion when they reach
-            Independent or Reflection.
+            Skills count towards completion when they reach Independent or
+            Reflection.
           </p>
         </div>
 
@@ -413,20 +485,184 @@ function App() {
     )
   }
 
-  const renderPlaceholder = (
-    title: string,
-    description: string,
-  ) => (
+  const renderLesson = () => (
     <section className="page-placeholder">
-      <p className="section-label">JackTrack</p>
-      <h1>{title}</h1>
-      <p>{description}</p>
+      <p className="section-label">Private practice</p>
+      <h1>Record a lesson</h1>
+
+      <p>
+        Set this up before driving, then complete the reflection once safely
+        parked.
+      </p>
+
+      {lessonSaved && (
+        <div className="lesson-card skills-summary">
+          <h3>Lesson saved</h3>
+          <p>Your lesson has been added to the history for this session.</p>
+        </div>
+      )}
 
       <div className="lesson-card">
-        <h3>This page is ready to build next</h3>
+        <h3>Date</h3>
+        <input
+          className="progress-select"
+          type="date"
+          value={lessonDate}
+          onChange={(event) => setLessonDate(event.target.value)}
+        />
+      </div>
+
+      <div className="lesson-card spaced-card">
+        <h3>Duration in minutes</h3>
+        <input
+          className="progress-select"
+          type="number"
+          min="1"
+          placeholder="Example: 45"
+          value={lessonDuration}
+          onChange={(event) => setLessonDuration(event.target.value)}
+        />
+      </div>
+
+      <div className="lesson-card spaced-card">
+        <h3>Road type</h3>
+        <select
+          className="progress-select"
+          value={roadType}
+          onChange={(event) => setRoadType(event.target.value)}
+        >
+          <option>Quiet residential roads</option>
+          <option>Industrial estate</option>
+          <option>Town centre</option>
+          <option>Rural roads</option>
+          <option>Dual carriageway</option>
+          <option>Mixed roads</option>
+          <option>Car park or private land</option>
+        </select>
+      </div>
+
+      <div className="lesson-card spaced-card">
+        <h3>Lesson objectives</h3>
+        <textarea
+          className="progress-select"
+          rows={4}
+          placeholder="What are you planning to practise?"
+          value={objectives}
+          onChange={(event) => setObjectives(event.target.value)}
+        />
+      </div>
+
+      <div className="lesson-card spaced-card">
+        <h3>Skills practised</h3>
+        <p>Select all skills covered during the lesson.</p>
+
+        {allSkills.map((skill) => (
+          <label
+            key={skill.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '9px 0',
+              borderBottom: '1px solid #eef0f3',
+              fontSize: '14px',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={selectedLessonSkills.includes(skill.id)}
+              onChange={() => toggleLessonSkill(skill.id)}
+            />
+
+            <span>
+              {skill.id}. {skill.name}
+            </span>
+          </label>
+        ))}
+      </div>
+
+      <div className="lesson-card spaced-card">
+        <h3>What went well?</h3>
+        <textarea
+          className="progress-select"
+          rows={4}
+          placeholder="Record strengths and improvements."
+          value={wentWell}
+          onChange={(event) => setWentWell(event.target.value)}
+        />
+      </div>
+
+      <div className="lesson-card spaced-card">
+        <h3>What needs more work?</h3>
+        <textarea
+          className="progress-select"
+          rows={4}
+          placeholder="Record mistakes, prompts or areas lacking confidence."
+          value={needsWork}
+          onChange={(event) => setNeedsWork(event.target.value)}
+        />
+      </div>
+
+      <div className="lesson-card spaced-card">
+        <h3>Recommended next lesson</h3>
+        <textarea
+          className="progress-select"
+          rows={3}
+          placeholder="What should you focus on next time?"
+          value={nextLesson}
+          onChange={(event) => setNextLesson(event.target.value)}
+        />
+      </div>
+
+      <button
+        className="start-button"
+        type="button"
+        onClick={saveLesson}
+      >
+        <span>
+          <strong>Save lesson</strong>
+          <small>Add this session to Emily’s lesson history</small>
+        </span>
+
+        <span>›</span>
+      </button>
+    </section>
+  )
+
+  const renderProgress = () => (
+    <section className="page-placeholder">
+      <p className="section-label">Learning overview</p>
+      <h1>Progress</h1>
+
+      <div className="lesson-card skills-summary">
+        <h3>{overallProgress}% independently achieved</h3>
         <p>
-          This section will be developed after the Skills screen has
-          been tested and saved.
+          {completedSkills} of 27 skills are currently marked Independent or
+          Reflection.
+        </p>
+      </div>
+
+      <div className="lesson-card spaced-card">
+        <h3>Lessons recorded</h3>
+        <p>{lessons.length} lessons have been saved during this session.</p>
+      </div>
+    </section>
+  )
+
+  const renderMore = () => (
+    <section className="page-placeholder">
+      <p className="section-label">JackTrack</p>
+      <h1>More</h1>
+
+      <div className="lesson-card">
+        <h3>Learner</h3>
+        <p>Emily · Automatic car</p>
+      </div>
+
+      <div className="lesson-card spaced-card">
+        <h3>Coming next</h3>
+        <p>
+          Offline saving, backups, GPS lesson recording and route reflection.
         </p>
       </div>
     </section>
@@ -439,20 +675,11 @@ function App() {
       case 'skills':
         return renderSkills()
       case 'lesson':
-        return renderPlaceholder(
-          'Lesson',
-          'Plan, start and review driving lessons from this section.',
-        )
+        return renderLesson()
       case 'progress':
-        return renderPlaceholder(
-          'Progress',
-          'Review confidence, completed skills and areas needing more practice.',
-        )
+        return renderProgress()
       case 'more':
-        return renderPlaceholder(
-          'More',
-          'Manage learner details, backups and JackTrack settings.',
-        )
+        return renderMore()
     }
   }
 
