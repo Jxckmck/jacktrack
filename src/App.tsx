@@ -200,6 +200,16 @@ const loadSavedData = (): SavedData => {
   }
 }
 
+const formatLessonDate = (date: string) => {
+  const parsedDate = new Date(`${date}T12:00:00`)
+
+  return parsedDate.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
 function getProgressColour(percentage: number) {
   if (percentage < 40) return '#dc2626'
   if (percentage < 75) return '#f59e0b'
@@ -350,6 +360,22 @@ function App() {
     setNextLesson('')
   }
 
+  const deleteLesson = (lesson: Lesson) => {
+    const confirmed = window.confirm(
+      `Delete the lesson from ${formatLessonDate(
+        lesson.date,
+      )}? This cannot be undone.`,
+    )
+
+    if (!confirmed) return
+
+    setLessons((currentLessons) =>
+      currentLessons.filter(
+        (savedLesson) => savedLesson.id !== lesson.id,
+      ),
+    )
+  }
+
   const renderHome = () => (
     <>
       <header className="header">
@@ -404,7 +430,7 @@ function App() {
       {lessons.length > 0 && (
         <section className="section">
           <p className="section-label">Latest lesson</p>
-          <h2>{lessons[0].date}</h2>
+          <h2>{formatLessonDate(lessons[0].date)}</h2>
 
           <div className="lesson-card">
             <h3>
@@ -738,6 +764,66 @@ function App() {
           {lessons.length} lessons are saved on this device.
         </p>
       </div>
+
+      {lessons.length > 0 && (
+        <section className="section">
+          <p className="section-label">Lesson history</p>
+          <h2>Previous lessons</h2>
+
+          {lessons.map((lesson) => (
+            <div
+              className="lesson-card spaced-card"
+              key={lesson.id}
+            >
+              <h3>{formatLessonDate(lesson.date)}</h3>
+
+              <p>
+                {lesson.duration} minutes · {lesson.roadType}
+              </p>
+
+              {lesson.objectives && (
+                <p>
+                  <strong>Objectives:</strong> {lesson.objectives}
+                </p>
+              )}
+
+              {lesson.wentWell && (
+                <p>
+                  <strong>Went well:</strong> {lesson.wentWell}
+                </p>
+              )}
+
+              {lesson.needsWork && (
+                <p>
+                  <strong>Needs work:</strong> {lesson.needsWork}
+                </p>
+              )}
+
+              {lesson.nextLesson && (
+                <p>
+                  <strong>Next lesson:</strong> {lesson.nextLesson}
+                </p>
+              )}
+
+              <p>
+                {lesson.skills.length} skills practised
+              </p>
+
+              <button
+                type="button"
+                className="text-button"
+                style={{
+                  marginBottom: 0,
+                  color: '#dc2626',
+                }}
+                onClick={() => deleteLesson(lesson)}
+              >
+                Delete lesson
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
     </section>
   )
 
@@ -762,7 +848,8 @@ function App() {
       <div className="lesson-card spaced-card">
         <h3>Coming next</h3>
         <p>
-          Backup and restore, GPS recording and route reflection.
+          Editing lessons, backup and restore, GPS recording and
+          route reflection.
         </p>
       </div>
     </section>
