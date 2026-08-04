@@ -3,8 +3,11 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  base: '/jacktrack/',
+
   plugins: [
     react(),
+
     VitePWA({
       registerType: 'autoUpdate',
 
@@ -18,6 +21,7 @@ export default defineConfig({
       manifest: {
         name: 'JackTrack Learner Driving',
         short_name: 'JackTrack',
+
         description:
           'Track private driving practice, learner progress, GPS routes and lesson reflections.',
 
@@ -27,22 +31,22 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
 
-        start_url: '/',
-        scope: '/',
+        start_url: '/jacktrack/',
+        scope: '/jacktrack/',
 
         icons: [
           {
-            src: '/pwa-192x192.png',
+            src: 'pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/pwa-512x512.png',
+            src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: '/pwa-512x512.png',
+            src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
@@ -61,7 +65,9 @@ export default defineConfig({
 
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/tile\.openstreetmap\.org\//,
+            urlPattern:
+              /^https:\/\/tile\.openstreetmap\.org\//,
+
             handler: 'NetworkFirst',
 
             options: {
