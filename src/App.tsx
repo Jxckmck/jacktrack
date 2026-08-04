@@ -5,12 +5,12 @@ import {
 } from 'react'
 import type { ChangeEvent } from 'react'
 import './App.css'
-import './LearnerSetup.css'
 import GpsRecorder from './GpsRecorder'
 import type { RoutePoint } from './GpsRecorder'
 import RouteMap from './RouteMap'
 import type { ReflectionMarker } from './RouteMap'
 import AvatarIcon from './AvatarIcon'
+import SkillGuidancePanel from './SkillGuidancePanel'
 import { avatarChoices } from './learnerProfile'
 import type {
   AvatarChoice,
@@ -1301,47 +1301,10 @@ function App({
           </select>
         </div>
 
-        {profile.transmission ===
-          'Automatic' &&
-          selectedSkill.automaticNote && (
-            <div className="lesson-card spaced-card">
-              <h3>
-                Automatic-car guidance
-              </h3>
-
-              <p>
-                {
-                  selectedSkill.automaticNote
-                }
-              </p>
-            </div>
-          )}
-
-        <div className="lesson-card spaced-card">
-          <h3>Teacher watch-outs</h3>
-
-          <p>
-            Watch for rushed
-            observations, excessive
-            prompting and habits that
-            prevent {profile.name} from
-            making their own decisions.
-          </p>
-        </div>
-
-        <div className="lesson-card spaced-card">
-          <h3>
-            Ready to progress when
-          </h3>
-
-          <p>
-            {profile.name} can
-            demonstrate the skill
-            safely and consistently in
-            different situations with
-            progressively less help.
-          </p>
-        </div>
+        <SkillGuidancePanel
+          skillId={selectedSkill.id}
+          learner={profile}
+        />
       </section>
     )
   }
