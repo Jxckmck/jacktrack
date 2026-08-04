@@ -50,6 +50,16 @@ const progressLevels: ProgressLevel[] = [
   'Reflection',
 ]
 
+const roadTypes = [
+  'Quiet residential roads',
+  'Industrial estate',
+  'Town centre',
+  'Rural roads',
+  'Dual carriageway',
+  'Mixed roads',
+  'Car park or private land',
+]
+
 const skillGroups: SkillGroup[] = [
   {
     name: '1. The basics',
@@ -293,6 +303,17 @@ function App() {
   const [backupMessage, setBackupMessage] = useState('')
   const [resetMessage, setResetMessage] = useState('')
 
+  const [editingLessonId, setEditingLessonId] =
+    useState<number | null>(null)
+  const [editDate, setEditDate] = useState('')
+  const [editDuration, setEditDuration] = useState('')
+  const [editRoadType, setEditRoadType] = useState('')
+  const [editObjectives, setEditObjectives] = useState('')
+  const [editSkills, setEditSkills] = useState<number[]>([])
+  const [editWentWell, setEditWentWell] = useState('')
+  const [editNeedsWork, setEditNeedsWork] = useState('')
+  const [editNextLesson, setEditNextLesson] = useState('')
+
   useEffect(() => {
     const dataToSave: SavedData = {
       progress,
@@ -326,6 +347,14 @@ function App() {
 
   const toggleLessonSkill = (skillId: number) => {
     setSelectedLessonSkills((currentSkills) =>
+      currentSkills.includes(skillId)
+        ? currentSkills.filter((id) => id !== skillId)
+        : [...currentSkills, skillId],
+    )
+  }
+
+  const toggleEditSkill = (skillId: number) => {
+    setEditSkills((currentSkills) =>
       currentSkills.includes(skillId)
         ? currentSkills.filter((id) => id !== skillId)
         : [...currentSkills, skillId],
@@ -383,6 +412,55 @@ function App() {
         (savedLesson) => savedLesson.id !== lesson.id,
       ),
     )
+
+    if (editingLessonId === lesson.id) {
+      setEditingLessonId(null)
+    }
+  }
+
+  const beginEditingLesson = (lesson: Lesson) => {
+    setEditingLessonId(lesson.id)
+    setEditDate(lesson.date)
+    setEditDuration(lesson.duration)
+    setEditRoadType(lesson.roadType)
+    setEditObjectives(lesson.objectives)
+    setEditSkills(lesson.skills)
+    setEditWentWell(lesson.wentWell)
+    setEditNeedsWork(lesson.needsWork)
+    setEditNextLesson(lesson.nextLesson)
+  }
+
+  const cancelEditingLesson = () => {
+    setEditingLessonId(null)
+  }
+
+  const saveEditedLesson = () => {
+    if (editingLessonId === null) return
+
+    if (!editDuration.trim()) {
+      alert('Please enter the lesson duration.')
+      return
+    }
+
+    setLessons((currentLessons) =>
+      currentLessons.map((lesson) =>
+        lesson.id === editingLessonId
+          ? {
+              ...lesson,
+              date: editDate,
+              duration: editDuration,
+              roadType: editRoadType,
+              objectives: editObjectives,
+              skills: editSkills,
+              wentWell: editWentWell,
+              needsWork: editNeedsWork,
+              nextLesson: editNextLesson,
+            }
+          : lesson,
+      ),
+    )
+
+    setEditingLessonId(null)
   }
 
   const exportBackup = () => {
@@ -471,6 +549,7 @@ function App() {
 
       setProgress(restoredProgress)
       setLessons(validLessons)
+      setEditingLessonId(null)
       setBackupMessage('Backup restored successfully.')
       setResetMessage('')
     } catch {
@@ -499,6 +578,7 @@ function App() {
     setProgress(createDefaultProgress())
     setLessons([])
     setSelectedSkill(null)
+    setEditingLessonId(null)
     setLessonDuration('')
     setObjectives('')
     setSelectedLessonSkills([])
@@ -812,13 +892,9 @@ function App() {
             setRoadType(event.target.value)
           }
         >
-          <option>Quiet residential roads</option>
-          <option>Industrial estate</option>
-          <option>Town centre</option>
-          <option>Rural roads</option>
-          <option>Dual carriageway</option>
-          <option>Mixed roads</option>
-          <option>Car park or private land</option>
+          {roadTypes.map((option) => (
+            <option key={option}>{option}</option>
+          ))}
         </select>
       </div>
 
@@ -922,6 +998,196 @@ function App() {
     </section>
   )
 
+  const renderLessonEditor = (lesson: Lesson) => (
+    <div>
+      <h3>Edit lesson</h3>
+
+      <p>
+        Update any incorrect details, then save your changes.
+      </p>
+
+      <p className="section-label">Date</p>
+
+      <input
+        className="progress-select"
+        type="date"
+        value={editDate}
+        onChange={(event) => setEditDate(event.target.value)}
+      />
+
+      <p
+        className="section-label"
+        style={{ marginTop: '16px' }}
+      >
+        Duration in minutes
+      </p>
+
+      <input
+        className="progress-select"
+        type="number"
+        min="1"
+        value={editDuration}
+        onChange={(event) =>
+          setEditDuration(event.target.value)
+        }
+      />
+
+      <p
+        className="section-label"
+        style={{ marginTop: '16px' }}
+      >
+        Road type
+      </p>
+
+      <select
+        className="progress-select"
+        value={editRoadType}
+        onChange={(event) =>
+          setEditRoadType(event.target.value)
+        }
+      >
+        {roadTypes.map((option) => (
+          <option key={option}>{option}</option>
+        ))}
+      </select>
+
+      <p
+        className="section-label"
+        style={{ marginTop: '16px' }}
+      >
+        Objectives
+      </p>
+
+      <textarea
+        className="progress-select"
+        rows={3}
+        value={editObjectives}
+        onChange={(event) =>
+          setEditObjectives(event.target.value)
+        }
+      />
+
+      <p
+        className="section-label"
+        style={{ marginTop: '16px' }}
+      >
+        Skills practised
+      </p>
+
+      {allSkills.map((skill) => (
+        <label
+          key={skill.id}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '8px 0',
+            borderBottom: '1px solid #eef0f3',
+            fontSize: '14px',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={editSkills.includes(skill.id)}
+            onChange={() => toggleEditSkill(skill.id)}
+          />
+
+          <span>
+            {skill.id}. {skill.name}
+          </span>
+        </label>
+      ))}
+
+      <p
+        className="section-label"
+        style={{ marginTop: '16px' }}
+      >
+        What went well?
+      </p>
+
+      <textarea
+        className="progress-select"
+        rows={3}
+        value={editWentWell}
+        onChange={(event) =>
+          setEditWentWell(event.target.value)
+        }
+      />
+
+      <p
+        className="section-label"
+        style={{ marginTop: '16px' }}
+      >
+        What needs more work?
+      </p>
+
+      <textarea
+        className="progress-select"
+        rows={3}
+        value={editNeedsWork}
+        onChange={(event) =>
+          setEditNeedsWork(event.target.value)
+        }
+      />
+
+      <p
+        className="section-label"
+        style={{ marginTop: '16px' }}
+      >
+        Recommended next lesson
+      </p>
+
+      <textarea
+        className="progress-select"
+        rows={3}
+        value={editNextLesson}
+        onChange={(event) =>
+          setEditNextLesson(event.target.value)
+        }
+      />
+
+      <button
+        type="button"
+        className="start-button"
+        onClick={saveEditedLesson}
+      >
+        <span>
+          <strong>Save changes</strong>
+          <small>Update this lesson entry</small>
+        </span>
+
+        <span>✓</span>
+      </button>
+
+      <button
+        type="button"
+        className="text-button"
+        style={{
+          width: '100%',
+          marginTop: '16px',
+          marginBottom: 0,
+        }}
+        onClick={cancelEditingLesson}
+      >
+        Cancel editing
+      </button>
+
+      <button
+        type="button"
+        className="text-button"
+        style={{
+          width: '100%',
+          marginTop: '14px',
+          marginBottom: 0,
+          color: '#dc2626',
+        }}
+        onClick={() => deleteLesson(lesson)}
+      >
+        Delete lesson
+      </button>
+    </div>
+  )
+
   const renderProgress = () => (
     <section className="page-placeholder">
       <p className="section-label">Learning overview</p>
@@ -951,53 +1217,80 @@ function App() {
               className="lesson-card spaced-card"
               key={lesson.id}
             >
-              <h3>{formatLessonDate(lesson.date)}</h3>
+              {editingLessonId === lesson.id ? (
+                renderLessonEditor(lesson)
+              ) : (
+                <>
+                  <h3>{formatLessonDate(lesson.date)}</h3>
 
-              <p>
-                {lesson.duration} minutes · {lesson.roadType}
-              </p>
+                  <p>
+                    {lesson.duration} minutes · {lesson.roadType}
+                  </p>
 
-              {lesson.objectives && (
-                <p>
-                  <strong>Objectives:</strong>{' '}
-                  {lesson.objectives}
-                </p>
+                  {lesson.objectives && (
+                    <p>
+                      <strong>Objectives:</strong>{' '}
+                      {lesson.objectives}
+                    </p>
+                  )}
+
+                  {lesson.wentWell && (
+                    <p>
+                      <strong>Went well:</strong>{' '}
+                      {lesson.wentWell}
+                    </p>
+                  )}
+
+                  {lesson.needsWork && (
+                    <p>
+                      <strong>Needs work:</strong>{' '}
+                      {lesson.needsWork}
+                    </p>
+                  )}
+
+                  {lesson.nextLesson && (
+                    <p>
+                      <strong>Next lesson:</strong>{' '}
+                      {lesson.nextLesson}
+                    </p>
+                  )}
+
+                  <p>
+                    {lesson.skills.length} skills practised
+                  </p>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '18px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="text-button"
+                      style={{ marginBottom: 0 }}
+                      onClick={() =>
+                        beginEditingLesson(lesson)
+                      }
+                    >
+                      Edit lesson
+                    </button>
+
+                    <button
+                      type="button"
+                      className="text-button"
+                      style={{
+                        marginBottom: 0,
+                        color: '#dc2626',
+                      }}
+                      onClick={() => deleteLesson(lesson)}
+                    >
+                      Delete lesson
+                    </button>
+                  </div>
+                </>
               )}
-
-              {lesson.wentWell && (
-                <p>
-                  <strong>Went well:</strong>{' '}
-                  {lesson.wentWell}
-                </p>
-              )}
-
-              {lesson.needsWork && (
-                <p>
-                  <strong>Needs work:</strong>{' '}
-                  {lesson.needsWork}
-                </p>
-              )}
-
-              {lesson.nextLesson && (
-                <p>
-                  <strong>Next lesson:</strong>{' '}
-                  {lesson.nextLesson}
-                </p>
-              )}
-
-              <p>{lesson.skills.length} skills practised</p>
-
-              <button
-                type="button"
-                className="text-button"
-                style={{
-                  marginBottom: 0,
-                  color: '#dc2626',
-                }}
-                onClick={() => deleteLesson(lesson)}
-              >
-                Delete lesson
-              </button>
             </div>
           ))}
         </section>
@@ -1134,7 +1427,7 @@ function App() {
         <h3>Coming next</h3>
 
         <p>
-          Editing lessons, GPS route recording and route reflection.
+          GPS route recording, route maps and reflection markers.
         </p>
       </div>
     </section>
