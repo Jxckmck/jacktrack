@@ -610,8 +610,8 @@ function App() {
         <h1>Driving skills</h1>
 
         <p>
-          Track Emily’s development through all 27 recommended
-          learning skills.
+          Update progress directly from the list, or open a skill for
+          full guidance.
         </p>
 
         <div className="lesson-card skills-summary">
@@ -627,20 +627,72 @@ function App() {
             <p className="section-label">{group.name}</p>
 
             {group.skills.map((skill) => (
-              <button
+              <div
+                className="lesson-card spaced-card"
                 key={skill.id}
-                className="lesson-card skill-button"
-                onClick={() => setSelectedSkill(skill)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                }}
               >
-                <span>
-                  <strong>
+                <button
+                  type="button"
+                  onClick={() => setSelectedSkill(skill)}
+                  style={{
+                    flex: '1 1 220px',
+                    minWidth: 0,
+                    padding: 0,
+                    border: 0,
+                    background: 'transparent',
+                    color: 'inherit',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <strong
+                    style={{
+                      display: 'block',
+                      marginBottom: '5px',
+                    }}
+                  >
                     {skill.id}. {skill.name}
                   </strong>
-                  <small>{progress[skill.id]}</small>
-                </span>
 
-                <span className="skill-chevron">›</span>
-              </button>
+                  <small
+                    style={{
+                      color: '#667085',
+                      fontSize: '12px',
+                    }}
+                  >
+                    Tap for guidance and teacher watch-outs
+                  </small>
+                </button>
+
+                <select
+                  className="progress-select"
+                  value={progress[skill.id]}
+                  aria-label={`Progress for ${skill.name}`}
+                  onChange={(event) =>
+                    updateProgress(
+                      skill.id,
+                      event.target.value as ProgressLevel,
+                    )
+                  }
+                  style={{
+                    flex: '0 1 175px',
+                    width: 'auto',
+                    minWidth: '150px',
+                  }}
+                >
+                  {progressLevels.map((level) => (
+                    <option key={level} value={level}>
+                      {level}
+                    </option>
+                  ))}
+                </select>
+              </div>
             ))}
           </section>
         ))}
@@ -946,8 +998,7 @@ function App() {
       <div className="lesson-card spaced-card">
         <h3>Coming next</h3>
         <p>
-          Editing lessons, quick skill updating, learner reset and GPS
-          route recording.
+          Editing lessons, learner reset and GPS route recording.
         </p>
       </div>
     </section>
