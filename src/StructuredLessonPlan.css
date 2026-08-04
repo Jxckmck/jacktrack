@@ -1,0 +1,180 @@
+.structured-plan {
+  margin-top: 18px;
+}
+
+.lesson-plan-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #dbe4f0;
+  border-radius: 18px;
+  background: #ffffff;
+  color: #152033;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lesson-plan-toggle.open {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.lesson-plan-toggle span,
+.lesson-plan-toggle strong,
+.lesson-plan-toggle small {
+  display: block;
+}
+
+.lesson-plan-toggle strong {
+  font-size: 16px;
+}
+
+.lesson-plan-toggle small {
+  margin-top: 4px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.lesson-plan-chevron {
+  flex-shrink: 0;
+  color: #2563eb;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.lesson-plan-content {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.lesson-plan-progress {
+  padding: 16px;
+  border: 1px solid #dbe4f0;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.lesson-plan-progress > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.lesson-plan-progress strong,
+.lesson-plan-progress span {
+  display: block;
+}
+
+.lesson-plan-progress strong {
+  color: #152033;
+  font-size: 15px;
+}
+
+.lesson-plan-progress > div:first-child span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.lesson-plan-progress-track {
+  height: 8px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e6eaf0;
+}
+
+.lesson-plan-progress-track span {
+  height: 100%;
+  border-radius: inherit;
+  background: #2563eb;
+  transition: width 180ms ease;
+}
+
+.lesson-plan-stage {
+  padding: 18px;
+  border: 1px solid #e6eaf0;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.lesson-plan-stage.completed {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.lesson-plan-stage-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.lesson-plan-stage-heading h3 {
+  margin: 0;
+  color: #152033;
+  font-size: 16px;
+}
+
+.lesson-plan-stage-heading span {
+  display: block;
+  margin-top: 4px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.lesson-plan-stage > p {
+  margin: 14px 0 0;
+  color: #475467;
+  line-height: 1.55;
+}
+
+.stage-complete-button {
+  flex-shrink: 0;
+  padding: 8px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.lesson-plan-stage.completed
+  .stage-complete-button {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.lesson-plan-note {
+  margin: 2px 4px 0;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@media (max-width: 520px) {
+  .lesson-plan-toggle {
+    padding: 16px;
+  }
+
+  .lesson-plan-stage {
+    padding: 16px;
+  }
+
+  .lesson-plan-stage-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .stage-complete-button {
+    align-self: flex-start;
+  }
+}

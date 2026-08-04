@@ -11,6 +11,7 @@ import RouteMap from './RouteMap'
 import type { ReflectionMarker } from './RouteMap'
 import AvatarIcon from './AvatarIcon'
 import SkillGuidancePanel from './SkillGuidancePanel'
+import StructuredLessonPlan from './StructuredLessonPlan'
 import { avatarChoices } from './learnerProfile'
 import type {
   AvatarChoice,
@@ -1300,6 +1301,12 @@ function App({
             )}
           </select>
         </div>
+
+        <StructuredLessonPlan
+          skillId={selectedSkill.id}
+          skillName={selectedSkill.name}
+          learner={profile}
+        />
 
         <SkillGuidancePanel
           skillId={selectedSkill.id}
