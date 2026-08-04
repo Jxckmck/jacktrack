@@ -1,17 +1,22 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from 'react'
 import type { ChangeEvent } from 'react'
 import './App.css'
 import GpsRecorder from './GpsRecorder'
-import type { RoutePoint } from './GpsRecorder'
+import type {
+  GpsRecorderHandle,
+  RoutePoint,
+} from './GpsRecorder'
 import RouteMap from './RouteMap'
 import type { ReflectionMarker } from './RouteMap'
 import AvatarIcon from './AvatarIcon'
 import SkillGuidancePanel from './SkillGuidancePanel'
 import StructuredLessonPlan from './StructuredLessonPlan'
+import { skillGuidance } from './skillGuidance'
 import { avatarChoices } from './learnerProfile'
 import type {
   AvatarChoice,
@@ -368,6 +373,36 @@ const createSafeFilename = (name: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '') || 'learner'
 
+const getSuggestedRoadType = (
+  skillId: number,
+) => {
+  if ([1, 2, 3, 4, 5].includes(skillId)) {
+    return 'Car park or private land'
+  }
+
+  if ([6, 7, 8, 9, 10, 11, 12, 13].includes(skillId)) {
+    return 'Quiet residential roads'
+  }
+
+  if ([14, 15, 16].includes(skillId)) {
+    return 'Town centre'
+  }
+
+  if ([17, 18, 19, 20].includes(skillId)) {
+    return 'Car park or private land'
+  }
+
+  if (skillId === 21) {
+    return 'Rural roads'
+  }
+
+  if ([22, 23].includes(skillId)) {
+    return 'Dual carriageway'
+  }
+
+  return 'Mixed roads'
+}
+
 function getProgressColour(
   percentage: number,
 ) {
@@ -583,6 +618,14 @@ function App({
     setProfileMessage,
   ] = useState('')
 
+  const [
+    plannedLessonSkill,
+    setPlannedLessonSkill,
+  ] = useState<DrivingSkill | null>(null)
+
+  const gpsRecorderRef =
+    useRef<GpsRecorderHandle | null>(null)
+
   useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
@@ -649,29 +692,92 @@ function App({
     )
   }
 
+  const planPracticeSession = (
+    skill: DrivingSkill,
+  ) => {
+    const guidance = skillGuidance[skill.id]
+
+    setPlannedLessonSkill(skill)
+    setSelectedLessonSkills([skill.id])
+    setLessonDuration('45')
+    setRoadType(
+      getSuggestedRoadType(skill.id),
+    )
+
+    setObjectives(
+      guidance
+        ? `Focus on ${skill.name.toLowerCase()}: ${guidance.summary}`
+        : `Practise ${skill.name.toLowerCase()} safely and consistently.`,
+    )
+
+    setWentWell('')
+    setNeedsWork('')
+    setNextLesson('')
+    setRecordedRoute([])
+    setGpsDurationSeconds(0)
+    setGpsDistanceMiles(0)
+    setLessonSaved(false)
+    setSelectedSkill(null)
+    setActiveTab('lesson')
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
+
   const saveLesson = () => {
-    if (!lessonDuration.trim()) {
+    if (!gpsRecorderRef.current?.isRecording()) {
       window.alert(
-        'Please enter the lesson duration.',
+        'Start the lesson and GPS recording before saving.',
       )
       return
     }
 
+    const gpsResult =
+      gpsRecorderRef.current.finishRecording()
+
+    if (gpsResult.route.length === 0) {
+      window.alert(
+        'No GPS position was recorded, so the lesson has not been saved. Check location permission and try again.',
+      )
+      return
+    }
+
+    const finalDuration = lessonDuration.trim()
+      ? lessonDuration.trim()
+      : Math.max(
+          1,
+          Math.round(
+            gpsResult.durationSeconds / 60,
+          ),
+        ).toString()
+
     const newLesson: Lesson = {
       id: Date.now(),
       date: lessonDate,
-      duration: lessonDuration,
+      duration: finalDuration,
       roadType,
       objectives,
       skills: selectedLessonSkills,
       wentWell,
       needsWork,
       nextLesson,
-      route: recordedRoute,
-      gpsDurationSeconds,
-      gpsDistanceMiles,
+      route: gpsResult.route,
+      gpsDurationSeconds:
+        gpsResult.durationSeconds,
+      gpsDistanceMiles:
+        gpsResult.distanceMiles,
       reflectionMarkers: [],
     }
+
+    setRecordedRoute(gpsResult.route)
+    setGpsDurationSeconds(
+      gpsResult.durationSeconds,
+    )
+    setGpsDistanceMiles(
+      gpsResult.distanceMiles,
+    )
 
     setLessons((currentLessons) => [
       newLesson,
@@ -693,6 +799,7 @@ function App({
     setRecordedRoute([])
     setGpsDurationSeconds(0)
     setGpsDistanceMiles(0)
+    setPlannedLessonSkill(null)
   }
 
   const deleteLesson = (
@@ -1165,9 +1272,10 @@ function App({
 
       <button
         className="start-button"
-        onClick={() =>
+        onClick={() => {
+          setPlannedLessonSkill(null)
           setActiveTab('lesson')
-        }
+        }}
       >
         <span>
           <strong>
@@ -1302,11 +1410,27 @@ function App({
           </select>
         </div>
 
-        <StructuredLessonPlan
-          skillId={selectedSkill.id}
-          skillName={selectedSkill.name}
-          learner={profile}
-        />
+        <button
+          className="start-button"
+          type="button"
+          onClick={() =>
+            planPracticeSession(
+              selectedSkill,
+            )
+          }
+        >
+          <span>
+            <strong>
+              Plan a practice session
+            </strong>
+
+            <small>
+              Prefill the lesson record and open the guided plan
+            </small>
+          </span>
+
+          <span>›</span>
+        </button>
 
         <SkillGuidancePanel
           skillId={selectedSkill.id}
@@ -1440,7 +1564,48 @@ function App({
         </div>
       )}
 
+      {plannedLessonSkill && (
+        <>
+          <div className="lesson-card skills-summary">
+            <p className="section-label">
+              Planned from Skills
+            </p>
+
+            <h3>
+              {plannedLessonSkill.id}.{' '}
+              {plannedLessonSkill.name}
+            </h3>
+
+            <p>
+              The skill, objective, duration
+              and suggested road type have
+              been filled in. Adjust anything
+              before starting.
+            </p>
+
+            <button
+              type="button"
+              className="text-button full-text-button"
+              onClick={() =>
+                setPlannedLessonSkill(null)
+              }
+            >
+              Remove guided plan
+            </button>
+          </div>
+
+          <StructuredLessonPlan
+            skillId={plannedLessonSkill.id}
+            skillName={
+              plannedLessonSkill.name
+            }
+            learner={profile}
+          />
+        </>
+      )}
+
       <GpsRecorder
+        ref={gpsRecorderRef}
         onRouteFinished={(
           route,
           durationSeconds,
@@ -1640,11 +1805,13 @@ function App({
         onClick={saveLesson}
       >
         <span>
-          <strong>Save lesson</strong>
+          <strong>
+            Finish and save lesson
+          </strong>
 
           <small>
-            Add this session to lesson
-            history
+            Stop GPS and add this session
+            to lesson history
           </small>
         </span>
 
