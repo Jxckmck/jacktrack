@@ -3,6 +3,7 @@ import type { ChangeEvent } from 'react'
 import './App.css'
 import GpsRecorder from './GpsRecorder'
 import type { RoutePoint } from './GpsRecorder'
+import RouteMap from './RouteMap'
 
 type Tab = 'home' | 'skills' | 'lesson' | 'progress' | 'more'
 
@@ -205,9 +206,7 @@ const loadSavedData = (): SavedData => {
   try {
     const savedData = localStorage.getItem(STORAGE_KEY)
 
-    if (!savedData) {
-      return defaultData
-    }
+    if (!savedData) return defaultData
 
     const parsedData = JSON.parse(savedData) as Partial<SavedData>
 
@@ -252,6 +251,10 @@ const formatGpsTime = (seconds = 0) => {
     .toString()
     .padStart(2, '0')}`
 }
+
+const getSkillName = (skillId: number) =>
+  allSkills.find((skill) => skill.id === skillId)?.name ??
+  `Skill ${skillId}`
 
 function getProgressColour(percentage: number) {
   if (percentage < 40) return '#dc2626'
@@ -306,6 +309,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<Tab>('home')
   const [selectedSkill, setSelectedSkill] =
     useState<DrivingSkill | null>(null)
+  const [selectedLessonId, setSelectedLessonId] =
+    useState<number | null>(null)
 
   const [progress, setProgress] =
     useState<Record<number, ProgressLevel>>(initialData.progress)
@@ -349,16 +354,23 @@ function App() {
   const [editNextLesson, setEditNextLesson] = useState('')
 
   useEffect(() => {
-    const dataToSave: SavedData = {
-      progress,
-      lessons,
-    }
-
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify(dataToSave),
+      JSON.stringify({
+        progress,
+        lessons,
+      }),
     )
   }, [progress, lessons])
+
+  const completedSkills = Object.values(progress).filter(
+    (level) =>
+      level === 'Independent' || level === 'Reflection',
+  ).length
+
+  const overallProgress = Math.round(
+    (completedSkills / allSkills.length) * 100,
+  )
 
   const updateProgress = (
     skillId: number,
@@ -369,15 +381,6 @@ function App() {
       [skillId]: level,
     }))
   }
-
-  const completedSkills = Object.values(progress).filter(
-    (level) =>
-      level === 'Independent' || level === 'Reflection',
-  ).length
-
-  const overallProgress = Math.round(
-    (completedSkills / allSkills.length) * 100,
-  )
 
   const toggleLessonSkill = (skillId: number) => {
     setSelectedLessonSkills((currentSkills) =>
@@ -453,8 +456,10 @@ function App() {
       ),
     )
 
-    if (editingLessonId === lesson.id) {
-      setEditingLessonId(null)
+    setEditingLessonId(null)
+
+    if (selectedLessonId === lesson.id) {
+      setSelectedLessonId(null)
     }
   }
 
@@ -468,10 +473,6 @@ function App() {
     setEditWentWell(lesson.wentWell)
     setEditNeedsWork(lesson.needsWork)
     setEditNextLesson(lesson.nextLesson)
-  }
-
-  const cancelEditingLesson = () => {
-    setEditingLessonId(null)
   }
 
   const saveEditedLesson = () => {
@@ -504,12 +505,15 @@ function App() {
   }
 
   const exportBackup = () => {
-    const backupData: SavedData = {
-      progress,
-      lessons,
-    }
+    const fileContents = JSON.stringify(
+      {
+        progress,
+        lessons,
+      },
+      null,
+      2,
+    )
 
-    const fileContents = JSON.stringify(backupData, null, 2)
     const fileBlob = new Blob([fileContents], {
       type: 'application/json',
     })
@@ -538,14 +542,11 @@ function App() {
     if (!backupFile) return
 
     try {
-      const fileContents = await backupFile.text()
       const parsedData = JSON.parse(
-        fileContents,
+        await backupFile.text(),
       ) as Partial<SavedData>
 
       if (
-        !parsedData ||
-        typeof parsedData !== 'object' ||
         !parsedData.progress ||
         typeof parsedData.progress !== 'object' ||
         !Array.isArray(parsedData.lessons)
@@ -589,6 +590,7 @@ function App() {
 
       setProgress(restoredProgress)
       setLessons(validLessons)
+      setSelectedLessonId(null)
       setEditingLessonId(null)
       setBackupMessage('Backup restored successfully.')
       setResetMessage('')
@@ -603,7 +605,7 @@ function App() {
 
   const resetLearnerData = () => {
     const confirmation = window.prompt(
-      'This will permanently delete all of Emily’s skill progress and lesson history on this device.\n\nType RESET to continue.',
+      'This will permanently delete all of Emily’s skill progress, lesson history and routes.\n\nType RESET to continue.',
     )
 
     if (confirmation === null) return
@@ -618,18 +620,20 @@ function App() {
     setProgress(createDefaultProgress())
     setLessons([])
     setSelectedSkill(null)
+    setSelectedLessonId(null)
     setEditingLessonId(null)
-    setLessonDuration('')
-    setObjectives('')
-    setSelectedLessonSkills([])
-    setWentWell('')
-    setNeedsWork('')
-    setNextLesson('')
     setRecordedRoute([])
     setGpsDurationSeconds(0)
     setGpsDistanceMiles(0)
     setBackupMessage('')
     setResetMessage('Emily’s learner data has been reset.')
+  }
+
+  const navigateToLessonSummary = (lessonId: number) => {
+    setSelectedLessonId(lessonId)
+    setEditingLessonId(null)
+    setActiveTab('progress')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const renderHome = () => (
@@ -647,9 +651,7 @@ function App() {
         <div>
           <span className="badge">Automatic learner</span>
           <h2>Building confidence</h2>
-          <p>
-            Keep each session calm, focused and consistent.
-          </p>
+          <p>Keep each session calm, focused and consistent.</p>
         </div>
 
         <ProgressRing percentage={overallProgress} />
@@ -673,12 +675,10 @@ function App() {
 
         <div className="lesson-card">
           <h3>Quiet-road control session</h3>
-
           <p>
             Practise observations, smooth brake release and
             controlled stopping.
           </p>
-
           <span>30–40 minutes</span>
         </div>
       </section>
@@ -688,29 +688,29 @@ function App() {
           <p className="section-label">Latest lesson</p>
           <h2>{formatLessonDate(lessons[0].date)}</h2>
 
-          <div className="lesson-card">
-            <h3>
-              {lessons[0].duration} minutes ·{' '}
-              {lessons[0].roadType}
-            </h3>
-
-            <p>
-              {lessons[0].wentWell ||
-                'Lesson saved. Add reflection notes next time for a fuller summary.'}
-            </p>
-
+          <button
+            type="button"
+            className="lesson-card lesson-summary-link"
+            onClick={() =>
+              navigateToLessonSummary(lessons[0].id)
+            }
+          >
             <span>
-              {lessons[0].skills.length} skills practised
+              <strong>
+                {lessons[0].duration} minutes ·{' '}
+                {lessons[0].roadType}
+              </strong>
+
+              <small>
+                {lessons[0].skills.length} skills practised
+                {(lessons[0].route?.length ?? 0) > 0
+                  ? ' · GPS route recorded'
+                  : ''}
+              </small>
             </span>
 
-            {(lessons[0].route?.length ?? 0) > 0 && (
-              <p style={{ marginTop: '12px', marginBottom: 0 }}>
-                GPS route ·{' '}
-                {(lessons[0].gpsDistanceMiles ?? 0).toFixed(2)}{' '}
-                miles
-              </p>
-            )}
-          </div>
+            <span className="skill-chevron">›</span>
+          </button>
         </section>
       )}
     </>
@@ -720,7 +720,7 @@ function App() {
     if (!selectedSkill) return null
 
     return (
-      <section className="page-placeholder">
+      <section>
         <button
           className="text-button"
           onClick={() => setSelectedSkill(null)}
@@ -737,11 +737,6 @@ function App() {
         <div className="lesson-card">
           <h3>Current progress</h3>
 
-          <p>
-            Choose the level that best reflects Emily’s current
-            ability.
-          </p>
-
           <select
             className="progress-select"
             value={progress[selectedSkill.id]}
@@ -753,9 +748,7 @@ function App() {
             }
           >
             {progressLevels.map((level) => (
-              <option key={level} value={level}>
-                {level}
-              </option>
+              <option key={level}>{level}</option>
             ))}
           </select>
         </div>
@@ -790,7 +783,7 @@ function App() {
     if (selectedSkill) return renderSkillDetail()
 
     return (
-      <section className="page-placeholder">
+      <section>
         <p className="section-label">Official DVSA record</p>
         <h1>Driving skills</h1>
 
@@ -806,8 +799,8 @@ function App() {
           </h3>
 
           <p>
-            Skills count towards completion when they reach
-            Independent or Reflection.
+            Skills count towards completion at Independent or
+            Reflection.
           </p>
         </div>
 
@@ -817,68 +810,33 @@ function App() {
 
             {group.skills.map((skill) => (
               <div
-                className="lesson-card spaced-card"
+                className="lesson-card quick-skill-card"
                 key={skill.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  flexWrap: 'wrap',
-                }}
               >
                 <button
                   type="button"
+                  className="quick-skill-name"
                   onClick={() => setSelectedSkill(skill)}
-                  style={{
-                    flex: '1 1 220px',
-                    minWidth: 0,
-                    padding: 0,
-                    border: 0,
-                    background: 'transparent',
-                    color: 'inherit',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                  }}
                 >
-                  <strong
-                    style={{
-                      display: 'block',
-                      marginBottom: '5px',
-                    }}
-                  >
+                  <strong>
                     {skill.id}. {skill.name}
                   </strong>
 
-                  <small
-                    style={{
-                      color: '#667085',
-                      fontSize: '12px',
-                    }}
-                  >
-                    Tap for guidance and teacher watch-outs
-                  </small>
+                  <small>Tap for guidance</small>
                 </button>
 
                 <select
-                  className="progress-select"
+                  className="progress-select quick-progress-select"
                   value={progress[skill.id]}
-                  aria-label={`Progress for ${skill.name}`}
                   onChange={(event) =>
                     updateProgress(
                       skill.id,
                       event.target.value as ProgressLevel,
                     )
                   }
-                  style={{
-                    flex: '0 1 175px',
-                    width: 'auto',
-                    minWidth: '150px',
-                  }}
                 >
                   {progressLevels.map((level) => (
-                    <option key={level} value={level}>
-                      {level}
-                    </option>
+                    <option key={level}>{level}</option>
                   ))}
                 </select>
               </div>
@@ -890,7 +848,7 @@ function App() {
   }
 
   const renderLesson = () => (
-    <section className="page-placeholder">
+    <section>
       <p className="section-label">Private practice</p>
       <h1>Record a lesson</h1>
 
@@ -902,9 +860,7 @@ function App() {
       {lessonSaved && (
         <div className="lesson-card skills-summary">
           <h3>Lesson saved</h3>
-          <p>
-            Your lesson has been saved permanently on this device.
-          </p>
+          <p>Your lesson has been saved on this device.</p>
         </div>
       )}
 
@@ -935,16 +891,11 @@ function App() {
       {recordedRoute.length > 0 && (
         <div className="lesson-card spaced-card">
           <h3>Route ready</h3>
-
           <p>
             {recordedRoute.length} GPS points ·{' '}
             {gpsDistanceMiles.toFixed(2)} miles ·{' '}
             {formatGpsTime(gpsDurationSeconds)}
           </p>
-
-          <span>
-            This route will be stored when you save the lesson.
-          </span>
         </div>
       )}
 
@@ -968,7 +919,6 @@ function App() {
           className="progress-select"
           type="number"
           min="1"
-          placeholder="Example: 45"
           value={lessonDuration}
           onChange={(event) =>
             setLessonDuration(event.target.value)
@@ -998,7 +948,6 @@ function App() {
         <textarea
           className="progress-select"
           rows={4}
-          placeholder="What are you planning to practise?"
           value={objectives}
           onChange={(event) =>
             setObjectives(event.target.value)
@@ -1008,20 +957,9 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>Skills practised</h3>
-        <p>Select all skills covered during the lesson.</p>
 
         {allSkills.map((skill) => (
-          <label
-            key={skill.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '9px 0',
-              borderBottom: '1px solid #eef0f3',
-              fontSize: '14px',
-            }}
-          >
+          <label className="skill-checkbox" key={skill.id}>
             <input
               type="checkbox"
               checked={selectedLessonSkills.includes(skill.id)}
@@ -1041,7 +979,6 @@ function App() {
         <textarea
           className="progress-select"
           rows={4}
-          placeholder="Record strengths and improvements."
           value={wentWell}
           onChange={(event) =>
             setWentWell(event.target.value)
@@ -1055,7 +992,6 @@ function App() {
         <textarea
           className="progress-select"
           rows={4}
-          placeholder="Record mistakes, prompts or areas lacking confidence."
           value={needsWork}
           onChange={(event) =>
             setNeedsWork(event.target.value)
@@ -1069,7 +1005,6 @@ function App() {
         <textarea
           className="progress-select"
           rows={3}
-          placeholder="What should you focus on next time?"
           value={nextLesson}
           onChange={(event) =>
             setNextLesson(event.target.value)
@@ -1084,7 +1019,7 @@ function App() {
       >
         <span>
           <strong>Save lesson</strong>
-          <small>Add this session to Emily’s lesson history</small>
+          <small>Add this session to lesson history</small>
         </span>
 
         <span>›</span>
@@ -1093,15 +1028,10 @@ function App() {
   )
 
   const renderLessonEditor = (lesson: Lesson) => (
-    <div>
+    <div className="lesson-card spaced-card">
       <h3>Edit lesson</h3>
 
-      <p>
-        Update any incorrect details, then save your changes.
-      </p>
-
       <p className="section-label">Date</p>
-
       <input
         className="progress-select"
         type="date"
@@ -1109,30 +1039,21 @@ function App() {
         onChange={(event) => setEditDate(event.target.value)}
       />
 
-      <p
-        className="section-label"
-        style={{ marginTop: '16px' }}
-      >
-        Duration in minutes
+      <p className="section-label editor-label">
+        Duration
       </p>
-
       <input
         className="progress-select"
         type="number"
-        min="1"
         value={editDuration}
         onChange={(event) =>
           setEditDuration(event.target.value)
         }
       />
 
-      <p
-        className="section-label"
-        style={{ marginTop: '16px' }}
-      >
+      <p className="section-label editor-label">
         Road type
       </p>
-
       <select
         className="progress-select"
         value={editRoadType}
@@ -1145,13 +1066,9 @@ function App() {
         ))}
       </select>
 
-      <p
-        className="section-label"
-        style={{ marginTop: '16px' }}
-      >
+      <p className="section-label editor-label">
         Objectives
       </p>
-
       <textarea
         className="progress-select"
         rows={3}
@@ -1161,44 +1078,25 @@ function App() {
         }
       />
 
-      <p
-        className="section-label"
-        style={{ marginTop: '16px' }}
-      >
-        Skills practised
+      <p className="section-label editor-label">
+        Skills
       </p>
 
       {allSkills.map((skill) => (
-        <label
-          key={skill.id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '8px 0',
-            borderBottom: '1px solid #eef0f3',
-            fontSize: '14px',
-          }}
-        >
+        <label className="skill-checkbox" key={skill.id}>
           <input
             type="checkbox"
             checked={editSkills.includes(skill.id)}
             onChange={() => toggleEditSkill(skill.id)}
           />
 
-          <span>
-            {skill.id}. {skill.name}
-          </span>
+          <span>{skill.name}</span>
         </label>
       ))}
 
-      <p
-        className="section-label"
-        style={{ marginTop: '16px' }}
-      >
-        What went well?
+      <p className="section-label editor-label">
+        Went well
       </p>
-
       <textarea
         className="progress-select"
         rows={3}
@@ -1208,13 +1106,9 @@ function App() {
         }
       />
 
-      <p
-        className="section-label"
-        style={{ marginTop: '16px' }}
-      >
-        What needs more work?
+      <p className="section-label editor-label">
+        Needs work
       </p>
-
       <textarea
         className="progress-select"
         rows={3}
@@ -1224,13 +1118,9 @@ function App() {
         }
       />
 
-      <p
-        className="section-label"
-        style={{ marginTop: '16px' }}
-      >
-        Recommended next lesson
+      <p className="section-label editor-label">
+        Next lesson
       </p>
-
       <textarea
         className="progress-select"
         rows={3}
@@ -1241,40 +1131,29 @@ function App() {
       />
 
       <button
-        type="button"
         className="start-button"
+        type="button"
         onClick={saveEditedLesson}
       >
         <span>
           <strong>Save changes</strong>
-          <small>Update this lesson entry</small>
+          <small>Update this lesson</small>
         </span>
 
         <span>✓</span>
       </button>
 
       <button
+        className="text-button full-text-button"
         type="button"
-        className="text-button"
-        style={{
-          width: '100%',
-          marginTop: '16px',
-          marginBottom: 0,
-        }}
-        onClick={cancelEditingLesson}
+        onClick={() => setEditingLessonId(null)}
       >
         Cancel editing
       </button>
 
       <button
+        className="text-button delete-text-button"
         type="button"
-        className="text-button"
-        style={{
-          width: '100%',
-          marginTop: '14px',
-          marginBottom: 0,
-          color: '#dc2626',
-        }}
         onClick={() => deleteLesson(lesson)}
       >
         Delete lesson
@@ -1282,130 +1161,230 @@ function App() {
     </div>
   )
 
-  const renderProgress = () => (
-    <section className="page-placeholder">
-      <p className="section-label">Learning overview</p>
-      <h1>Progress</h1>
+  const renderLessonSummary = () => {
+    const lesson = lessons.find(
+      (savedLesson) => savedLesson.id === selectedLessonId,
+    )
 
-      <div className="lesson-card skills-summary">
-        <h3>{overallProgress}% independently achieved</h3>
+    if (!lesson) {
+      setSelectedLessonId(null)
+      return null
+    }
 
-        <p>
-          {completedSkills} of {allSkills.length} skills are
-          currently marked Independent or Reflection.
-        </p>
-      </div>
+    if (editingLessonId === lesson.id) {
+      return (
+        <section>
+          <button
+            className="text-button"
+            onClick={() => setEditingLessonId(null)}
+          >
+            ‹ Back to summary
+          </button>
 
-      <div className="lesson-card spaced-card">
-        <h3>Lessons recorded</h3>
-        <p>{lessons.length} lessons are saved on this device.</p>
-      </div>
-
-      {lessons.length > 0 && (
-        <section className="section">
-          <p className="section-label">Lesson history</p>
-          <h2>Previous lessons</h2>
-
-          {lessons.map((lesson) => (
-            <div
-              className="lesson-card spaced-card"
-              key={lesson.id}
-            >
-              {editingLessonId === lesson.id ? (
-                renderLessonEditor(lesson)
-              ) : (
-                <>
-                  <h3>{formatLessonDate(lesson.date)}</h3>
-
-                  <p>
-                    {lesson.duration} minutes · {lesson.roadType}
-                  </p>
-
-                  {(lesson.route?.length ?? 0) > 0 && (
-                    <p>
-                      <strong>GPS route:</strong>{' '}
-                      {(lesson.gpsDistanceMiles ?? 0).toFixed(2)}{' '}
-                      miles ·{' '}
-                      {formatGpsTime(
-                        lesson.gpsDurationSeconds ?? 0,
-                      )}{' '}
-                      · {lesson.route?.length ?? 0} points
-                    </p>
-                  )}
-
-                  {lesson.objectives && (
-                    <p>
-                      <strong>Objectives:</strong>{' '}
-                      {lesson.objectives}
-                    </p>
-                  )}
-
-                  {lesson.wentWell && (
-                    <p>
-                      <strong>Went well:</strong>{' '}
-                      {lesson.wentWell}
-                    </p>
-                  )}
-
-                  {lesson.needsWork && (
-                    <p>
-                      <strong>Needs work:</strong>{' '}
-                      {lesson.needsWork}
-                    </p>
-                  )}
-
-                  {lesson.nextLesson && (
-                    <p>
-                      <strong>Next lesson:</strong>{' '}
-                      {lesson.nextLesson}
-                    </p>
-                  )}
-
-                  <p>
-                    {lesson.skills.length} skills practised
-                  </p>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: '18px',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="text-button"
-                      style={{ marginBottom: 0 }}
-                      onClick={() =>
-                        beginEditingLesson(lesson)
-                      }
-                    >
-                      Edit lesson
-                    </button>
-
-                    <button
-                      type="button"
-                      className="text-button"
-                      style={{
-                        marginBottom: 0,
-                        color: '#dc2626',
-                      }}
-                      onClick={() => deleteLesson(lesson)}
-                    >
-                      Delete lesson
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
+          {renderLessonEditor(lesson)}
         </section>
-      )}
-    </section>
-  )
+      )
+    }
+
+    return (
+      <section>
+        <button
+          className="text-button"
+          onClick={() => setSelectedLessonId(null)}
+        >
+          ‹ Back to lesson history
+        </button>
+
+        <p className="section-label">Lesson summary</p>
+        <h1>{formatLessonDate(lesson.date)}</h1>
+
+        <div className="lesson-summary-stats">
+          <div>
+            <strong>{lesson.duration}</strong>
+            <span>minutes</span>
+          </div>
+
+          <div>
+            <strong>{lesson.skills.length}</strong>
+            <span>skills</span>
+          </div>
+
+          <div>
+            <strong>
+              {(lesson.gpsDistanceMiles ?? 0).toFixed(2)}
+            </strong>
+            <span>GPS miles</span>
+          </div>
+        </div>
+
+        <div className="lesson-card spaced-card">
+          <h3>Lesson details</h3>
+          <p>
+            <strong>Road type:</strong> {lesson.roadType}
+          </p>
+
+          {(lesson.route?.length ?? 0) > 0 && (
+            <p>
+              <strong>GPS recording:</strong>{' '}
+              {formatGpsTime(
+                lesson.gpsDurationSeconds ?? 0,
+              )}{' '}
+              · {lesson.route?.length ?? 0} points
+            </p>
+          )}
+        </div>
+
+        {(lesson.route?.length ?? 0) > 0 && (
+          <div className="lesson-card spaced-card map-card">
+            <h3>Lesson route</h3>
+
+            <p>
+              Internet connection required to load the map. The
+              recorded route remains stored offline.
+            </p>
+
+            <RouteMap route={lesson.route ?? []} />
+          </div>
+        )}
+
+        {lesson.objectives && (
+          <div className="lesson-card spaced-card">
+            <h3>Lesson objectives</h3>
+            <p>{lesson.objectives}</p>
+          </div>
+        )}
+
+        <div className="lesson-card spaced-card">
+          <h3>Skills practised</h3>
+
+          {lesson.skills.length > 0 ? (
+            <div className="summary-skill-list">
+              {lesson.skills.map((skillId) => (
+                <span key={skillId}>
+                  {skillId}. {getSkillName(skillId)}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p>No skills were selected for this lesson.</p>
+          )}
+        </div>
+
+        {lesson.wentWell && (
+          <div className="lesson-card spaced-card">
+            <h3>What went well</h3>
+            <p>{lesson.wentWell}</p>
+          </div>
+        )}
+
+        {lesson.needsWork && (
+          <div className="lesson-card spaced-card">
+            <h3>What needs more work</h3>
+            <p>{lesson.needsWork}</p>
+          </div>
+        )}
+
+        {lesson.nextLesson && (
+          <div className="lesson-card spaced-card">
+            <h3>Recommended next lesson</h3>
+            <p>{lesson.nextLesson}</p>
+          </div>
+        )}
+
+        <div className="summary-actions">
+          <button
+            className="start-button"
+            type="button"
+            onClick={() => beginEditingLesson(lesson)}
+          >
+            <span>
+              <strong>Edit lesson</strong>
+              <small>Correct or update lesson details</small>
+            </span>
+
+            <span>›</span>
+          </button>
+
+          <button
+            className="text-button delete-text-button"
+            type="button"
+            onClick={() => deleteLesson(lesson)}
+          >
+            Delete lesson
+          </button>
+        </div>
+      </section>
+    )
+  }
+
+  const renderProgress = () => {
+    if (selectedLessonId !== null) {
+      return renderLessonSummary()
+    }
+
+    return (
+      <section>
+        <p className="section-label">Learning overview</p>
+        <h1>Progress</h1>
+
+        <div className="lesson-card skills-summary">
+          <h3>{overallProgress}% independently achieved</h3>
+
+          <p>
+            {completedSkills} of {allSkills.length} skills are
+            Independent or Reflection.
+          </p>
+        </div>
+
+        <div className="lesson-card spaced-card">
+          <h3>Lessons recorded</h3>
+          <p>{lessons.length} lessons are saved.</p>
+        </div>
+
+        {lessons.length > 0 && (
+          <section className="section">
+            <p className="section-label">Lesson history</p>
+            <h2>Previous lessons</h2>
+
+            {lessons.map((lesson) => (
+              <button
+                type="button"
+                className="lesson-card lesson-history-button"
+                key={lesson.id}
+                onClick={() =>
+                  navigateToLessonSummary(lesson.id)
+                }
+              >
+                <span>
+                  <strong>
+                    {formatLessonDate(lesson.date)}
+                  </strong>
+
+                  <small>
+                    {lesson.duration} minutes · {lesson.roadType}
+                  </small>
+
+                  <small>
+                    {lesson.skills.length} skills
+                    {(lesson.route?.length ?? 0) > 0
+                      ? ` · ${(lesson.gpsDistanceMiles ?? 0).toFixed(
+                          2,
+                        )} GPS miles`
+                      : ''}
+                  </small>
+                </span>
+
+                <span className="skill-chevron">›</span>
+              </button>
+            ))}
+          </section>
+        )}
+      </section>
+    )
+  }
 
   const renderMore = () => (
-    <section className="page-placeholder">
+    <section>
       <p className="section-label">JackTrack</p>
       <h1>More</h1>
 
@@ -1416,20 +1395,14 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>Offline saving</h3>
-
         <p>
-          Skill progress, lesson history and recorded routes are
-          automatically saved on this device.
+          Progress, lessons and GPS routes are stored on this device.
+          Internet is only required to display route maps.
         </p>
       </div>
 
       <div className="lesson-card spaced-card">
         <h3>Backup and restore</h3>
-
-        <p>
-          Download a backup before changing devices or clearing
-          browser data.
-        </p>
 
         <button
           className="start-button"
@@ -1438,22 +1411,15 @@ function App() {
         >
           <span>
             <strong>Download backup</strong>
-            <small>Save Emily’s current JackTrack data</small>
+            <small>Save all learner data</small>
           </span>
-
           <span>↓</span>
         </button>
 
-        <label
-          className="start-button"
-          style={{
-            marginTop: '12px',
-            cursor: 'pointer',
-          }}
-        >
+        <label className="start-button restore-label">
           <span>
             <strong>Restore backup</strong>
-            <small>Choose a previous JackTrack backup file</small>
+            <small>Choose a JackTrack backup</small>
           </span>
 
           <span>↑</span>
@@ -1462,80 +1428,33 @@ function App() {
             type="file"
             accept=".json,application/json"
             onChange={restoreBackup}
-            style={{ display: 'none' }}
+            hidden
           />
         </label>
 
         {backupMessage && (
-          <p
-            style={{
-              marginTop: '14px',
-              marginBottom: 0,
-              fontWeight: 700,
-            }}
-          >
-            {backupMessage}
-          </p>
+          <p className="setting-message">{backupMessage}</p>
         )}
       </div>
 
-      <div
-        className="lesson-card spaced-card"
-        style={{
-          borderColor: '#fecaca',
-          background: '#fffafa',
-        }}
-      >
-        <h3 style={{ color: '#b91c1c' }}>
-          Reset learner data
-        </h3>
+      <div className="lesson-card spaced-card danger-card">
+        <h3>Reset learner data</h3>
 
         <p>
-          Permanently delete all of Emily’s skill progress, lesson
-          history and recorded routes from this device. Download a
-          backup first if the data may be needed again.
+          Permanently delete all progress, lessons and routes.
         </p>
 
         <button
+          className="danger-button"
           type="button"
           onClick={resetLearnerData}
-          style={{
-            width: '100%',
-            padding: '13px 16px',
-            border: '1px solid #dc2626',
-            borderRadius: '14px',
-            background: '#ffffff',
-            color: '#dc2626',
-            fontWeight: 800,
-            cursor: 'pointer',
-          }}
         >
           Reset Emily’s data
         </button>
 
         {resetMessage && (
-          <p
-            style={{
-              marginTop: '14px',
-              marginBottom: 0,
-              color: resetMessage.includes('has been reset')
-                ? '#166534'
-                : '#b91c1c',
-              fontWeight: 700,
-            }}
-          >
-            {resetMessage}
-          </p>
+          <p className="setting-message">{resetMessage}</p>
         )}
-      </div>
-
-      <div className="lesson-card spaced-card">
-        <h3>Coming next</h3>
-
-        <p>
-          Route maps, lesson reflection markers and Street View
-          review links.
-        </p>
       </div>
     </section>
   )
@@ -1555,60 +1474,39 @@ function App() {
     }
   }
 
+  const changeTab = (tab: Tab) => {
+    setActiveTab(tab)
+    setSelectedSkill(null)
+
+    if (tab !== 'progress') {
+      setSelectedLessonId(null)
+    }
+
+    window.scrollTo({ top: 0 })
+  }
+
   return (
     <main className="app">
       {renderContent()}
 
       <nav className="bottom-nav">
-        <button
-          className={activeTab === 'home' ? 'active' : ''}
-          onClick={() => {
-            setActiveTab('home')
-            setSelectedSkill(null)
-          }}
-        >
-          Home
-        </button>
-
-        <button
-          className={activeTab === 'skills' ? 'active' : ''}
-          onClick={() => {
-            setActiveTab('skills')
-            setSelectedSkill(null)
-          }}
-        >
-          Skills
-        </button>
-
-        <button
-          className={activeTab === 'lesson' ? 'active' : ''}
-          onClick={() => {
-            setActiveTab('lesson')
-            setSelectedSkill(null)
-          }}
-        >
-          Lesson
-        </button>
-
-        <button
-          className={activeTab === 'progress' ? 'active' : ''}
-          onClick={() => {
-            setActiveTab('progress')
-            setSelectedSkill(null)
-          }}
-        >
-          Progress
-        </button>
-
-        <button
-          className={activeTab === 'more' ? 'active' : ''}
-          onClick={() => {
-            setActiveTab('more')
-            setSelectedSkill(null)
-          }}
-        >
-          More
-        </button>
+        {(
+          [
+            ['home', 'Home'],
+            ['skills', 'Skills'],
+            ['lesson', 'Lesson'],
+            ['progress', 'Progress'],
+            ['more', 'More'],
+          ] as [Tab, string][]
+        ).map(([tab, label]) => (
+          <button
+            key={tab}
+            className={activeTab === tab ? 'active' : ''}
+            onClick={() => changeTab(tab)}
+          >
+            {label}
+          </button>
+        ))}
       </nav>
     </main>
   )
