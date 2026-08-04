@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { ChangeEvent, useEffect, useState } from 'react'
 import './App.css'
 
 type Tab = 'home' | 'skills' | 'lesson' | 'progress' | 'more'
@@ -40,6 +40,15 @@ type SavedData = {
 }
 
 const STORAGE_KEY = 'jacktrack-data-v1'
+
+const progressLevels: ProgressLevel[] = [
+  'Not started',
+  'Introduced',
+  'Helped',
+  'Prompted',
+  'Independent',
+  'Reflection',
+]
 
 const skillGroups: SkillGroup[] = [
   {
@@ -180,9 +189,7 @@ const loadSavedData = (): SavedData => {
   try {
     const savedData = localStorage.getItem(STORAGE_KEY)
 
-    if (!savedData) {
-      return defaultData
-    }
+    if (!savedData) return defaultData
 
     const parsedData = JSON.parse(savedData) as Partial<SavedData>
 
@@ -223,10 +230,7 @@ function ProgressRing({ percentage }: { percentage: number }) {
   const progressColour = getProgressColour(percentage)
 
   return (
-    <div
-      className="jt-progress-ring"
-      aria-label={`${percentage}% complete`}
-    >
+    <div className="jt-progress-ring" aria-label={`${percentage}% complete`}>
       <svg viewBox="0 0 100 100">
         <circle
           className="progress-circle-track"
@@ -248,9 +252,7 @@ function ProgressRing({ percentage }: { percentage: number }) {
       </svg>
 
       <div className="progress-circle-label">
-        <strong style={{ color: progressColour }}>
-          {percentage}%
-        </strong>
+        <strong style={{ color: progressColour }}>{percentage}%</strong>
         <span>complete</span>
       </div>
     </div>
@@ -267,15 +269,13 @@ function App() {
   const [progress, setProgress] =
     useState<Record<number, ProgressLevel>>(initialData.progress)
 
-  const [lessons, setLessons] =
-    useState<Lesson[]>(initialData.lessons)
+  const [lessons, setLessons] = useState<Lesson[]>(initialData.lessons)
 
   const [lessonDate, setLessonDate] = useState(
     new Date().toISOString().slice(0, 10),
   )
   const [lessonDuration, setLessonDuration] = useState('')
-  const [roadType, setRoadType] =
-    useState('Quiet residential roads')
+  const [roadType, setRoadType] = useState('Quiet residential roads')
   const [objectives, setObjectives] = useState('')
   const [selectedLessonSkills, setSelectedLessonSkills] =
     useState<number[]>([])
@@ -283,6 +283,7 @@ function App() {
   const [needsWork, setNeedsWork] = useState('')
   const [nextLesson, setNextLesson] = useState('')
   const [lessonSaved, setLessonSaved] = useState(false)
+  const [backupMessage, setBackupMessage] = useState('')
 
   useEffect(() => {
     const dataToSave: SavedData = {
@@ -290,10 +291,7 @@ function App() {
       lessons,
     }
 
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(dataToSave),
-    )
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave))
   }, [progress, lessons])
 
   const updateProgress = (
@@ -311,9 +309,7 @@ function App() {
       level === 'Independent' || level === 'Reflection',
   ).length
 
-  const overallProgress = Math.round(
-    (completedSkills / 27) * 100,
-  )
+  const overallProgress = Math.round((completedSkills / 27) * 100)
 
   const toggleLessonSkill = (skillId: number) => {
     setSelectedLessonSkills((currentSkills) =>
@@ -348,7 +344,7 @@ function App() {
 
     setLessonSaved(true)
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       setLessonSaved(false)
     }, 2500)
 
@@ -376,6 +372,98 @@ function App() {
     )
   }
 
+  const exportBackup = () => {
+    const backupData: SavedData = {
+      progress,
+      lessons,
+    }
+
+    const fileContents = JSON.stringify(backupData, null, 2)
+    const fileBlob = new Blob([fileContents], {
+      type: 'application/json',
+    })
+
+    const downloadUrl = URL.createObjectURL(fileBlob)
+    const downloadLink = document.createElement('a')
+    const date = new Date().toISOString().slice(0, 10)
+
+    downloadLink.href = downloadUrl
+    downloadLink.download = `jacktrack-emily-backup-${date}.json`
+    document.body.appendChild(downloadLink)
+    downloadLink.click()
+    downloadLink.remove()
+    URL.revokeObjectURL(downloadUrl)
+
+    setBackupMessage('Backup downloaded successfully.')
+  }
+
+  const restoreBackup = async (
+    event: ChangeEvent<HTMLInputElement>,
+  ) => {
+    const backupFile = event.target.files?.[0]
+
+    if (!backupFile) return
+
+    try {
+      const fileContents = await backupFile.text()
+      const parsedData = JSON.parse(fileContents) as Partial<SavedData>
+
+      if (
+        !parsedData ||
+        typeof parsedData !== 'object' ||
+        !parsedData.progress ||
+        typeof parsedData.progress !== 'object' ||
+        !Array.isArray(parsedData.lessons)
+      ) {
+        throw new Error('Invalid backup')
+      }
+
+      const restoredProgress = createDefaultProgress()
+
+      allSkills.forEach((skill) => {
+        const restoredLevel = parsedData.progress?.[skill.id]
+
+        if (
+          restoredLevel &&
+          progressLevels.includes(restoredLevel)
+        ) {
+          restoredProgress[skill.id] = restoredLevel
+        }
+      })
+
+      const validLessons = parsedData.lessons.filter(
+        (lesson): lesson is Lesson =>
+          Boolean(
+            lesson &&
+              typeof lesson.id === 'number' &&
+              typeof lesson.date === 'string' &&
+              typeof lesson.duration === 'string' &&
+              typeof lesson.roadType === 'string' &&
+              Array.isArray(lesson.skills),
+          ),
+      )
+
+      const confirmed = window.confirm(
+        'Restore this backup? Your current progress and lesson history will be replaced.',
+      )
+
+      if (!confirmed) {
+        event.target.value = ''
+        return
+      }
+
+      setProgress(restoredProgress)
+      setLessons(validLessons)
+      setBackupMessage('Backup restored successfully.')
+    } catch {
+      setBackupMessage(
+        'That file is not a valid JackTrack backup.',
+      )
+    }
+
+    event.target.value = ''
+  }
+
   const renderHome = () => (
     <>
       <header className="header">
@@ -391,9 +479,7 @@ function App() {
         <div>
           <span className="badge">Automatic learner</span>
           <h2>Building confidence</h2>
-          <p>
-            Keep each session calm, focused and consistent.
-          </p>
+          <p>Keep each session calm, focused and consistent.</p>
         </div>
 
         <ProgressRing percentage={overallProgress} />
@@ -407,7 +493,6 @@ function App() {
           <strong>Start a lesson</strong>
           <small>Plan objectives and record the drive</small>
         </span>
-
         <span>›</span>
       </button>
 
@@ -417,12 +502,10 @@ function App() {
 
         <div className="lesson-card">
           <h3>Quiet-road control session</h3>
-
           <p>
-            Practise observations, smooth brake release and
-            controlled stopping.
+            Practise observations, smooth brake release and controlled
+            stopping.
           </p>
-
           <span>30–40 minutes</span>
         </div>
       </section>
@@ -434,8 +517,7 @@ function App() {
 
           <div className="lesson-card">
             <h3>
-              {lessons[0].duration} minutes ·{' '}
-              {lessons[0].roadType}
+              {lessons[0].duration} minutes · {lessons[0].roadType}
             </h3>
 
             <p>
@@ -443,9 +525,7 @@ function App() {
                 'Lesson saved. Add reflection notes next time for a fuller summary.'}
             </p>
 
-            <span>
-              {lessons[0].skills.length} skills practised
-            </span>
+            <span>{lessons[0].skills.length} skills practised</span>
           </div>
         </section>
       )}
@@ -454,15 +534,6 @@ function App() {
 
   const renderSkillDetail = () => {
     if (!selectedSkill) return null
-
-    const levels: ProgressLevel[] = [
-      'Not started',
-      'Introduced',
-      'Helped',
-      'Prompted',
-      'Independent',
-      'Reflection',
-    ]
 
     return (
       <section className="page-placeholder">
@@ -481,7 +552,6 @@ function App() {
 
         <div className="lesson-card">
           <h3>Current progress</h3>
-
           <p>
             Choose the level that best reflects Emily’s current
             ability.
@@ -497,7 +567,7 @@ function App() {
               )
             }
           >
-            {levels.map((level) => (
+            {progressLevels.map((level) => (
               <option key={level} value={level}>
                 {level}
               </option>
@@ -546,7 +616,6 @@ function App() {
 
         <div className="lesson-card skills-summary">
           <h3>{completedSkills} of 27 independently achieved</h3>
-
           <p>
             Skills count towards completion when they reach
             Independent or Reflection.
@@ -567,7 +636,6 @@ function App() {
                   <strong>
                     {skill.id}. {skill.name}
                   </strong>
-
                   <small>{progress[skill.id]}</small>
                 </span>
 
@@ -593,9 +661,7 @@ function App() {
       {lessonSaved && (
         <div className="lesson-card skills-summary">
           <h3>Lesson saved</h3>
-          <p>
-            Your lesson has been saved permanently on this device.
-          </p>
+          <p>Your lesson has been saved permanently on this device.</p>
         </div>
       )}
 
@@ -605,9 +671,7 @@ function App() {
           className="progress-select"
           type="date"
           value={lessonDate}
-          onChange={(event) =>
-            setLessonDate(event.target.value)
-          }
+          onChange={(event) => setLessonDate(event.target.value)}
         />
       </div>
 
@@ -627,13 +691,10 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>Road type</h3>
-
         <select
           className="progress-select"
           value={roadType}
-          onChange={(event) =>
-            setRoadType(event.target.value)
-          }
+          onChange={(event) => setRoadType(event.target.value)}
         >
           <option>Quiet residential roads</option>
           <option>Industrial estate</option>
@@ -647,15 +708,12 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>Lesson objectives</h3>
-
         <textarea
           className="progress-select"
           rows={4}
           placeholder="What are you planning to practise?"
           value={objectives}
-          onChange={(event) =>
-            setObjectives(event.target.value)
-          }
+          onChange={(event) => setObjectives(event.target.value)}
         />
       </div>
 
@@ -690,43 +748,34 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>What went well?</h3>
-
         <textarea
           className="progress-select"
           rows={4}
           placeholder="Record strengths and improvements."
           value={wentWell}
-          onChange={(event) =>
-            setWentWell(event.target.value)
-          }
+          onChange={(event) => setWentWell(event.target.value)}
         />
       </div>
 
       <div className="lesson-card spaced-card">
         <h3>What needs more work?</h3>
-
         <textarea
           className="progress-select"
           rows={4}
           placeholder="Record mistakes, prompts or areas lacking confidence."
           value={needsWork}
-          onChange={(event) =>
-            setNeedsWork(event.target.value)
-          }
+          onChange={(event) => setNeedsWork(event.target.value)}
         />
       </div>
 
       <div className="lesson-card spaced-card">
         <h3>Recommended next lesson</h3>
-
         <textarea
           className="progress-select"
           rows={3}
           placeholder="What should you focus on next time?"
           value={nextLesson}
-          onChange={(event) =>
-            setNextLesson(event.target.value)
-          }
+          onChange={(event) => setNextLesson(event.target.value)}
         />
       </div>
 
@@ -739,7 +788,6 @@ function App() {
           <strong>Save lesson</strong>
           <small>Add this session to Emily’s lesson history</small>
         </span>
-
         <span>›</span>
       </button>
     </section>
@@ -760,9 +808,7 @@ function App() {
 
       <div className="lesson-card spaced-card">
         <h3>Lessons recorded</h3>
-        <p>
-          {lessons.length} lessons are saved on this device.
-        </p>
+        <p>{lessons.length} lessons are saved on this device.</p>
       </div>
 
       {lessons.length > 0 && (
@@ -805,9 +851,7 @@ function App() {
                 </p>
               )}
 
-              <p>
-                {lesson.skills.length} skills practised
-              </p>
+              <p>{lesson.skills.length} skills practised</p>
 
               <button
                 type="button"
@@ -846,10 +890,64 @@ function App() {
       </div>
 
       <div className="lesson-card spaced-card">
+        <h3>Backup and restore</h3>
+        <p>
+          Download a backup before changing devices or clearing browser
+          data.
+        </p>
+
+        <button
+          className="start-button"
+          type="button"
+          onClick={exportBackup}
+        >
+          <span>
+            <strong>Download backup</strong>
+            <small>Save Emily’s current JackTrack data</small>
+          </span>
+          <span>↓</span>
+        </button>
+
+        <label
+          className="start-button"
+          style={{
+            marginTop: '12px',
+            cursor: 'pointer',
+          }}
+        >
+          <span>
+            <strong>Restore backup</strong>
+            <small>Choose a previous JackTrack backup file</small>
+          </span>
+
+          <span>↑</span>
+
+          <input
+            type="file"
+            accept=".json,application/json"
+            onChange={restoreBackup}
+            style={{ display: 'none' }}
+          />
+        </label>
+
+        {backupMessage && (
+          <p
+            style={{
+              marginTop: '14px',
+              marginBottom: 0,
+              fontWeight: 700,
+            }}
+          >
+            {backupMessage}
+          </p>
+        )}
+      </div>
+
+      <div className="lesson-card spaced-card">
         <h3>Coming next</h3>
         <p>
-          Editing lessons, backup and restore, GPS recording and
-          route reflection.
+          Editing lessons, quick skill updating, learner reset and GPS
+          route recording.
         </p>
       </div>
     </section>
