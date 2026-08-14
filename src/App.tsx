@@ -26,18 +26,30 @@ import type {
 
 type Tab =
   | 'home'
-  | 'skills'
   | 'lesson'
   | 'progress'
   | 'more'
 
-type ProgressLevel =
-  | 'Not started'
-  | 'Introduced'
-  | 'Helped'
-  | 'Prompted'
-  | 'Independent'
-  | 'Reflection'
+type LessonSessionState =
+  | 'setup'
+  | 'active'
+  | 'review'
+
+type ConfidenceRating = 1 | 2 | 3 | 4 | 5
+
+type SkillAssessment = {
+  skillId: number
+  confidenceBefore: ConfidenceRating | null
+  confidenceAfter: ConfidenceRating | null
+  needsMorePractice: boolean
+  supervisorNote?: string
+}
+
+type SkillPracticeSnapshot = {
+  confidence: ConfidenceRating | null
+  needsMorePractice: boolean
+  note: string
+}
 
 type DrivingSkill = {
   id: number
@@ -57,6 +69,9 @@ type Lesson = {
   roadType: string
   objectives: string
   skills: number[]
+  lessonType?: 'Guided' | 'Unguided'
+  primarySkillId?: number
+  skillAssessments?: SkillAssessment[]
   wentWell: string
   needsWork: string
   nextLesson: string
@@ -67,12 +82,12 @@ type Lesson = {
 }
 
 type SavedData = {
-  progress: Record<number, ProgressLevel>
   lessons: Lesson[]
 }
 
 type BackupData = SavedData & {
   profile?: LearnerProfile
+  progress?: Record<number, string>
 }
 
 type AppProps = {
@@ -84,14 +99,16 @@ type AppProps = {
 
 const STORAGE_KEY = 'jacktrack-data-v1'
 
-const progressLevels: ProgressLevel[] = [
-  'Not started',
-  'Introduced',
-  'Helped',
-  'Prompted',
-  'Independent',
-  'Reflection',
-]
+const confidenceLabels: Record<
+  ConfidenceRating,
+  string
+> = {
+  1: 'Not confident',
+  2: 'A bit unsure',
+  3: 'Getting there',
+  4: 'Confident',
+  5: 'Very confident',
+}
 
 const roadTypes = [
   'Quiet residential roads',
@@ -276,23 +293,24 @@ const allSkills = skillGroups.flatMap(
   (group) => group.skills,
 )
 
-const createDefaultProgress =
-  (): Record<number, ProgressLevel> => {
-    const defaultProgress: Record<
-      number,
-      ProgressLevel
-    > = {}
+const isConfidenceRating = (
+  value: unknown,
+): value is ConfidenceRating =>
+  value === 1 ||
+  value === 2 ||
+  value === 3 ||
+  value === 4 ||
+  value === 5
 
-    allSkills.forEach((skill) => {
-      defaultProgress[skill.id] = 'Not started'
-    })
-
-    return defaultProgress
-  }
+const formatConfidence = (
+  value: ConfidenceRating | null,
+) =>
+  value === null
+    ? 'Not rated'
+    : `${value}/5 · ${confidenceLabels[value]}`
 
 const loadSavedData = (): SavedData => {
   const defaultData: SavedData = {
-    progress: createDefaultProgress(),
     lessons: [],
   }
 
@@ -307,11 +325,6 @@ const loadSavedData = (): SavedData => {
     ) as Partial<SavedData>
 
     return {
-      progress: {
-        ...defaultData.progress,
-        ...(parsedData.progress ?? {}),
-      },
-
       lessons: Array.isArray(parsedData.lessons)
         ? parsedData.lessons
         : [],
@@ -403,14 +416,6 @@ const getSuggestedRoadType = (
   return 'Mixed roads'
 }
 
-function getProgressColour(
-  percentage: number,
-) {
-  if (percentage < 40) return '#dc2626'
-  if (percentage < 75) return '#f59e0b'
-  return '#16a34a'
-}
-
 function ProgressRing({
   percentage,
 }: {
@@ -423,13 +428,10 @@ function ProgressRing({
   const progressLength =
     (percentage / 100) * circumference
 
-  const progressColour =
-    getProgressColour(percentage)
-
   return (
     <div
       className="jt-progress-ring"
-      aria-label={`${percentage}% complete`}
+      aria-label={`${percentage}% of skills confidence-rated`}
     >
       <svg viewBox="0 0 100 100">
         <circle
@@ -444,7 +446,7 @@ function ProgressRing({
           cx="50"
           cy="50"
           r={radius}
-          stroke={progressColour}
+          stroke="#2563eb"
           strokeDasharray={`${progressLength} ${
             circumference - progressLength
           }`}
@@ -452,15 +454,99 @@ function ProgressRing({
       </svg>
 
       <div className="progress-circle-label">
-        <strong
-          style={{
-            color: progressColour,
-          }}
-        >
-          {percentage}%
+        <strong>{percentage}%</strong>
+        <span>rated</span>
+      </div>
+    </div>
+  )
+}
+
+function ConfidenceSlider({
+  value,
+  onChange,
+  label,
+}: {
+  value: ConfidenceRating | null
+  onChange: (value: ConfidenceRating) => void
+  label: string
+}) {
+  const displayValue = value ?? 1
+  const fillPercentage =
+    value === null
+      ? 0
+      : ((value - 1) / 4) * 100
+
+  return (
+    <div
+      className={
+        value === null
+          ? 'confidence-control not-rated'
+          : 'confidence-control'
+      }
+    >
+      <div className="confidence-value-row">
+        <strong>
+          {value === null
+            ? 'Not rated yet'
+            : `${value}/5`}
         </strong>
 
-        <span>complete</span>
+        <span>
+          {value === null
+            ? 'Move the slider to add a rating'
+            : confidenceLabels[value]}
+        </span>
+      </div>
+
+      <div className="confidence-slider-shell">
+        <div
+          className="confidence-slider-track"
+          aria-hidden="true"
+        >
+          <span
+            style={{
+              width: `${fillPercentage}%`,
+            }}
+          />
+        </div>
+
+        <input
+          className="confidence-slider"
+          type="range"
+          min="1"
+          max="5"
+          step="1"
+          value={displayValue}
+          aria-label={label}
+          aria-valuetext={
+            value === null
+              ? 'Not rated yet'
+              : `${value} out of 5, ${confidenceLabels[value]}`
+          }
+          onPointerDown={() => {
+            if (value === null) {
+              onChange(1)
+            }
+          }}
+          onChange={(event) =>
+            onChange(
+              Number(
+                event.target.value,
+              ) as ConfidenceRating,
+            )
+          }
+        />
+      </div>
+
+      <div
+        className="confidence-scale"
+        aria-hidden="true"
+      >
+        <span>1</span>
+        <span>2</span>
+        <span>3</span>
+        <span>4</span>
+        <span>5</span>
       </div>
     </div>
   )
@@ -485,10 +571,6 @@ function App({
 
   const [isAddingMarker, setIsAddingMarker] =
     useState(false)
-
-  const [progress, setProgress] = useState<
-    Record<number, ProgressLevel>
-  >(initialData.progress)
 
   const [lessons, setLessons] = useState<
     Lesson[]
@@ -515,6 +597,20 @@ function App({
     setSelectedLessonSkills,
   ] = useState<number[]>([])
 
+  const [
+    lessonConfidenceDraft,
+    setLessonConfidenceDraft,
+  ] = useState<
+    Record<number, ConfidenceRating | null>
+  >({})
+
+  const [
+    lessonPracticeDraft,
+    setLessonPracticeDraft,
+  ] = useState<
+    Record<number, SkillPracticeSnapshot>
+  >({})
+
   const [wentWell, setWentWell] =
     useState('')
 
@@ -523,6 +619,16 @@ function App({
 
   const [nextLesson, setNextLesson] =
     useState('')
+
+  const [
+    practiceNoteSkillId,
+    setPracticeNoteSkillId,
+  ] = useState<number | null>(null)
+
+  const [
+    practiceNoteDraft,
+    setPracticeNoteDraft,
+  ] = useState('')
 
   const [lessonSaved, setLessonSaved] =
     useState(false)
@@ -623,18 +729,44 @@ function App({
     setPlannedLessonSkill,
   ] = useState<DrivingSkill | null>(null)
 
+  const [
+    lessonSetupOpen,
+    setLessonSetupOpen,
+  ] = useState(false)
+
+  const [
+    lessonSessionState,
+    setLessonSessionState,
+  ] = useState<LessonSessionState>(
+    'setup',
+  )
+
+  const [
+    isChoosingLessonSkill,
+    setIsChoosingLessonSkill,
+  ] = useState(false)
+
+  const [
+    progressView,
+    setProgressView,
+  ] = useState<'overview' | 'skills'>(
+    'overview',
+  )
+
   const gpsRecorderRef =
     useRef<GpsRecorderHandle | null>(null)
+
+  const reviewReflectionRef =
+    useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        progress,
         lessons,
       }),
     )
-  }, [progress, lessons])
+  }, [lessons])
 
   useEffect(() => {
     setProfileName(profile.name)
@@ -644,40 +776,369 @@ function App({
     setProfileAvatar(profile.avatar)
   }, [profile])
 
-  const completedSkills =
-    Object.values(progress).filter(
-      (level) =>
-        level === 'Independent' ||
-        level === 'Reflection',
-    ).length
+  useEffect(() => {
+    if (lessonSessionState !== 'review') {
+      return
+    }
 
-  const overallProgress = Math.round(
-    (completedSkills /
-      allSkills.length) *
-      100,
+    const frameId =
+      window.requestAnimationFrame(() => {
+        reviewReflectionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+      })
+
+    return () =>
+      window.cancelAnimationFrame(frameId)
+  }, [lessonSessionState])
+
+  const currentSkillState = (() => {
+    const snapshot: Record<
+      number,
+      SkillPracticeSnapshot
+    > = {}
+
+    allSkills.forEach((skill) => {
+      snapshot[skill.id] = {
+        confidence: null,
+        needsMorePractice: false,
+        note: '',
+      }
+    })
+
+    const resolvedSkillIds = new Set<number>()
+
+    lessons.forEach((lesson) => {
+      ;(lesson.skillAssessments ?? []).forEach(
+        (assessment) => {
+          if (
+            resolvedSkillIds.has(
+              assessment.skillId,
+            )
+          ) {
+            return
+          }
+
+          snapshot[assessment.skillId] = {
+            confidence: isConfidenceRating(
+              assessment.confidenceAfter,
+            )
+              ? assessment.confidenceAfter
+              : null,
+            needsMorePractice: Boolean(
+              assessment.needsMorePractice,
+            ),
+            note:
+              assessment.supervisorNote?.trim() ??
+              '',
+          }
+
+          resolvedSkillIds.add(
+            assessment.skillId,
+          )
+        },
+      )
+    })
+
+    return snapshot
+  })()
+
+  const ratedSkills = allSkills.filter(
+    (skill) =>
+      currentSkillState[skill.id]
+        .confidence !== null,
   )
 
-  const updateProgress = (
+  const ratedSkillCount = ratedSkills.length
+
+  const confidenceCoverage = Math.round(
+    (ratedSkillCount / allSkills.length) * 100,
+  )
+
+  const averageConfidence =
+    ratedSkillCount === 0
+      ? null
+      : ratedSkills.reduce(
+          (total, skill) =>
+            total +
+            (currentSkillState[skill.id]
+              .confidence ?? 0),
+          0,
+        ) / ratedSkillCount
+
+  const needsMorePracticeCount =
+    allSkills.filter(
+      (skill) =>
+        currentSkillState[skill.id]
+          .needsMorePractice,
+    ).length
+
+  const lowestConfidenceSkills = [
+    ...ratedSkills,
+  ]
+    .sort((first, second) => {
+      const firstRating =
+        currentSkillState[first.id]
+          .confidence ?? 6
+      const secondRating =
+        currentSkillState[second.id]
+          .confidence ?? 6
+
+      if (firstRating !== secondRating) {
+        return firstRating - secondRating
+      }
+
+      const firstFlag = currentSkillState[
+        first.id
+      ].needsMorePractice
+        ? 0
+        : 1
+      const secondFlag = currentSkillState[
+        second.id
+      ].needsMorePractice
+        ? 0
+        : 1
+
+      return firstFlag - secondFlag
+    })
+    .slice(0, 5)
+
+  const practisedSkillIds = new Set(
+    lessons.flatMap((lesson) => lesson.skills),
+  )
+
+  const recommendedSkill = (() => {
+    const candidates = allSkills.filter(
+      (skill) => skill.id !== 23,
+    )
+
+    const flaggedSkills = candidates
+      .filter(
+        (skill) =>
+          currentSkillState[skill.id]
+            .needsMorePractice,
+      )
+      .sort(
+        (first, second) =>
+          (currentSkillState[first.id]
+            .confidence ?? 0) -
+          (currentSkillState[second.id]
+            .confidence ?? 0),
+      )
+
+    if (flaggedSkills[0]) {
+      return flaggedSkills[0]
+    }
+
+    const lowConfidenceSkills = candidates
+      .filter((skill) => {
+        const rating =
+          currentSkillState[skill.id]
+            .confidence
+
+        return rating !== null && rating <= 3
+      })
+      .sort(
+        (first, second) =>
+          (currentSkillState[first.id]
+            .confidence ?? 6) -
+          (currentSkillState[second.id]
+            .confidence ?? 6),
+      )
+
+    if (lowConfidenceSkills[0]) {
+      return lowConfidenceSkills[0]
+    }
+
+    const unpractisedSkill = candidates.find(
+      (skill) =>
+        !practisedSkillIds.has(skill.id),
+    )
+
+    if (unpractisedSkill) {
+      return unpractisedSkill
+    }
+
+    const lowestRatedSkill = candidates
+      .filter(
+        (skill) =>
+          currentSkillState[skill.id]
+            .confidence !== null,
+      )
+      .sort(
+        (first, second) =>
+          (currentSkillState[first.id]
+            .confidence ?? 6) -
+          (currentSkillState[second.id]
+            .confidence ?? 6),
+      )[0]
+
+    return lowestRatedSkill ?? candidates[0]
+  })()
+
+  const recommendedSkillState =
+    currentSkillState[recommendedSkill.id]
+
+  const recommendedReason =
+    recommendedSkillState.needsMorePractice
+      ? 'Supervisor marked this skill as needing more practice.'
+      : recommendedSkillState.confidence !==
+          null
+        ? `Current confidence is ${formatConfidence(
+            recommendedSkillState.confidence,
+          )}.`
+        : practisedSkillIds.has(
+              recommendedSkill.id,
+            )
+          ? 'This skill has been practised but has not been confidence-rated yet.'
+          : 'This skill has not been practised yet.'
+
+  const getLessonConfidence = (
     skillId: number,
-    level: ProgressLevel,
+  ) =>
+    Object.prototype.hasOwnProperty.call(
+      lessonConfidenceDraft,
+      skillId,
+    )
+      ? lessonConfidenceDraft[skillId]
+      : currentSkillState[skillId]
+          .confidence
+
+  const getLessonPractice = (
+    skillId: number,
+  ): SkillPracticeSnapshot =>
+    lessonPracticeDraft[skillId] ??
+    currentSkillState[skillId]
+
+  const updateLessonConfidence = (
+    skillId: number,
+    rating: ConfidenceRating,
   ) => {
-    setProgress((currentProgress) => ({
-      ...currentProgress,
-      [skillId]: level,
-    }))
+    setLessonConfidenceDraft(
+      (currentDraft) => ({
+        ...currentDraft,
+        [skillId]: rating,
+      }),
+    )
+  }
+
+  const setLessonNeedsMorePractice = (
+    skillId: number,
+    needsMorePractice: boolean,
+  ) => {
+    const currentPractice =
+      getLessonPractice(skillId)
+
+    setLessonPracticeDraft(
+      (currentDraft) => ({
+        ...currentDraft,
+        [skillId]: {
+          ...currentPractice,
+          needsMorePractice,
+          note: needsMorePractice
+            ? currentPractice.note
+            : '',
+        },
+      }),
+    )
+
+    if (needsMorePractice) {
+      setPracticeNoteSkillId(skillId)
+      setPracticeNoteDraft(
+        currentPractice.note,
+      )
+    } else if (
+      practiceNoteSkillId === skillId
+    ) {
+      setPracticeNoteSkillId(null)
+      setPracticeNoteDraft('')
+    }
+  }
+
+  const savePracticeNote = () => {
+    if (practiceNoteSkillId === null) {
+      return
+    }
+
+    const skillId = practiceNoteSkillId
+    const currentPractice =
+      getLessonPractice(skillId)
+
+    setLessonPracticeDraft(
+      (currentDraft) => ({
+        ...currentDraft,
+        [skillId]: {
+          ...currentPractice,
+          needsMorePractice: true,
+          note: practiceNoteDraft.trim(),
+        },
+      }),
+    )
+
+    setPracticeNoteSkillId(null)
+    setPracticeNoteDraft('')
+  }
+
+  const skipPracticeNote = () => {
+    setPracticeNoteSkillId(null)
+    setPracticeNoteDraft('')
   }
 
   const toggleLessonSkill = (
     skillId: number,
   ) => {
+    const isAdding =
+      !selectedLessonSkills.includes(skillId)
+
     setSelectedLessonSkills(
       (currentSkills) =>
-        currentSkills.includes(skillId)
-          ? currentSkills.filter(
+        isAdding
+          ? [...currentSkills, skillId]
+          : currentSkills.filter(
               (id) => id !== skillId,
-            )
-          : [...currentSkills, skillId],
+            ),
     )
+
+    if (isAdding) {
+      setLessonConfidenceDraft(
+        (currentDraft) => ({
+          ...currentDraft,
+          [skillId]:
+            currentSkillState[skillId]
+              .confidence,
+        }),
+      )
+
+      setLessonPracticeDraft(
+        (currentDraft) => ({
+          ...currentDraft,
+          [skillId]: {
+            ...currentSkillState[skillId],
+          },
+        }),
+      )
+    } else {
+      setLessonConfidenceDraft(
+        (currentDraft) => {
+          const nextDraft = {
+            ...currentDraft,
+          }
+          delete nextDraft[skillId]
+          return nextDraft
+        },
+      )
+
+      setLessonPracticeDraft(
+        (currentDraft) => {
+          const nextDraft = {
+            ...currentDraft,
+          }
+          delete nextDraft[skillId]
+          return nextDraft
+        },
+      )
+    }
   }
 
   const toggleEditSkill = (
@@ -692,14 +1153,118 @@ function App({
     )
   }
 
+  const clearRecordedLesson = () => {
+    gpsRecorderRef.current?.discardRecording()
+    setLessonSessionState('setup')
+    setRecordedRoute([])
+    setGpsDurationSeconds(0)
+    setGpsDistanceMiles(0)
+    setLessonConfidenceDraft({})
+    setLessonPracticeDraft({})
+    setPracticeNoteSkillId(null)
+    setPracticeNoteDraft('')
+  }
+
+  const confirmLeaveUnsavedLesson = () => {
+    if (!lessonSetupOpen) return true
+
+    if (lessonSessionState === 'setup') {
+      return true
+    }
+
+    const message =
+      lessonSessionState === 'active'
+        ? 'A lesson is currently in progress. Leaving now will stop GPS and discard this unsaved lesson.\n\nDiscard the lesson and leave?'
+        : 'This lesson has finished but has not been saved. Leaving now will discard the GPS route and unsaved reflection.\n\nDiscard the lesson and leave?'
+
+    const confirmed =
+      window.confirm(message)
+
+    if (!confirmed) return false
+
+    clearRecordedLesson()
+    return true
+  }
+
+  const openLessonHub = () => {
+    if (!confirmLeaveUnsavedLesson()) {
+      return
+    }
+
+    setLessonSetupOpen(false)
+    setIsChoosingLessonSkill(false)
+    setPlannedLessonSkill(null)
+    setLessonSessionState('setup')
+    setActiveTab('lesson')
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
+
+  const startUnguidedLesson = () => {
+    if (
+      gpsRecorderRef.current?.isRecording()
+    ) {
+      window.alert(
+        'A lesson is already being recorded. Finish or discard it before starting another.',
+      )
+      return
+    }
+
+    setPlannedLessonSkill(null)
+    setLessonDate(
+      new Date().toISOString().slice(0, 10),
+    )
+    setLessonDuration('')
+    setRoadType(
+      'Quiet residential roads',
+    )
+    setObjectives('')
+    setSelectedLessonSkills([])
+    setLessonConfidenceDraft({})
+    setLessonPracticeDraft({})
+    setPracticeNoteSkillId(null)
+    setPracticeNoteDraft('')
+    setWentWell('')
+    setNeedsWork('')
+    setNextLesson('')
+    setRecordedRoute([])
+    setGpsDurationSeconds(0)
+    setGpsDistanceMiles(0)
+    setLessonSaved(false)
+    setLessonSessionState('setup')
+    setLessonSetupOpen(true)
+    setIsChoosingLessonSkill(false)
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
+
   const planPracticeSession = (
     skill: DrivingSkill,
   ) => {
+    if (
+      gpsRecorderRef.current?.isRecording()
+    ) {
+      window.alert(
+        'A lesson is already being recorded. Finish or discard it before starting another.',
+      )
+      return
+    }
+
     const guidance = skillGuidance[skill.id]
 
     setPlannedLessonSkill(skill)
     setSelectedLessonSkills([skill.id])
-    setLessonDuration('45')
+    setLessonConfidenceDraft({})
+    setLessonPracticeDraft({})
+    setPracticeNoteSkillId(null)
+    setPracticeNoteDraft('')
+    setLessonDuration('')
     setRoadType(
       getSuggestedRoadType(skill.id),
     )
@@ -718,6 +1283,9 @@ function App({
     setGpsDistanceMiles(0)
     setLessonSaved(false)
     setSelectedSkill(null)
+    setLessonSessionState('setup')
+    setLessonSetupOpen(true)
+    setIsChoosingLessonSkill(false)
     setActiveTab('lesson')
 
     window.scrollTo({
@@ -726,50 +1294,58 @@ function App({
     })
   }
 
-  const saveLesson = () => {
+  const startLesson = () => {
+    if (lessonSessionState !== 'setup') {
+      return
+    }
+
+    if (
+      gpsRecorderRef.current?.isRecording()
+    ) {
+      window.alert(
+        'A lesson is already being recorded. Finish or discard it before starting another.',
+      )
+      return
+    }
+
+    const started =
+      gpsRecorderRef.current?.startRecording() ??
+      false
+
+    if (!started) {
+      window.alert(
+        'JackTrack could not start GPS. Check the GPS message on screen, then try again.',
+      )
+      return
+    }
+
+    setLessonDuration('')
+    setRecordedRoute([])
+    setGpsDurationSeconds(0)
+    setGpsDistanceMiles(0)
+    setLessonSessionState('active')
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
+
+  const finishLesson = () => {
+    if (lessonSessionState !== 'active') {
+      return
+    }
+
     if (!gpsRecorderRef.current?.isRecording()) {
       window.alert(
-        'Start the lesson and GPS recording before saving.',
+        'GPS is no longer recording. Press Start lesson again before continuing.',
       )
+      setLessonSessionState('setup')
       return
     }
 
     const gpsResult =
       gpsRecorderRef.current.finishRecording()
-
-    if (gpsResult.route.length === 0) {
-      window.alert(
-        'No GPS position was recorded, so the lesson has not been saved. Check location permission and try again.',
-      )
-      return
-    }
-
-    const finalDuration = lessonDuration.trim()
-      ? lessonDuration.trim()
-      : Math.max(
-          1,
-          Math.round(
-            gpsResult.durationSeconds / 60,
-          ),
-        ).toString()
-
-    const newLesson: Lesson = {
-      id: Date.now(),
-      date: lessonDate,
-      duration: finalDuration,
-      roadType,
-      objectives,
-      skills: selectedLessonSkills,
-      wentWell,
-      needsWork,
-      nextLesson,
-      route: gpsResult.route,
-      gpsDurationSeconds:
-        gpsResult.durationSeconds,
-      gpsDistanceMiles:
-        gpsResult.distanceMiles,
-      reflectionMarkers: [],
-    }
 
     setRecordedRoute(gpsResult.route)
     setGpsDurationSeconds(
@@ -778,6 +1354,132 @@ function App({
     setGpsDistanceMiles(
       gpsResult.distanceMiles,
     )
+
+    setLessonDuration(
+      Math.max(
+        1,
+        Math.round(
+          gpsResult.durationSeconds / 60,
+        ),
+      ).toString(),
+    )
+
+    const confidenceDraft: Record<
+      number,
+      ConfidenceRating | null
+    > = {}
+
+    const practiceDraft: Record<
+      number,
+      SkillPracticeSnapshot
+    > = {}
+
+    selectedLessonSkills.forEach(
+      (skillId) => {
+        confidenceDraft[skillId] =
+          currentSkillState[skillId]
+            .confidence
+        practiceDraft[skillId] = {
+          ...currentSkillState[skillId],
+        }
+      },
+    )
+
+    setLessonConfidenceDraft(
+      confidenceDraft,
+    )
+    setLessonPracticeDraft(practiceDraft)
+    setLessonSessionState('review')
+  }
+
+  const discardCurrentLesson = () => {
+    const confirmed = window.confirm(
+      lessonSessionState === 'active'
+        ? 'Discard this lesson? GPS will stop and the current route will be permanently lost.'
+        : 'Discard this unsaved lesson? The GPS route and reflection will be permanently lost.',
+    )
+
+    if (!confirmed) return
+
+    clearRecordedLesson()
+    setLessonSetupOpen(false)
+    setPlannedLessonSkill(null)
+    setIsChoosingLessonSkill(false)
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
+
+  const saveLesson = () => {
+    if (lessonSessionState !== 'review') {
+      window.alert(
+        'Finish the lesson before saving it.',
+      )
+      return
+    }
+
+    if (recordedRoute.length === 0) {
+      const saveWithoutRoute =
+        window.confirm(
+          'No reliable GPS route was captured. Save this lesson without a route?',
+        )
+
+      if (!saveWithoutRoute) return
+    }
+
+    const finalDuration = lessonDuration.trim()
+      ? lessonDuration.trim()
+      : Math.max(
+          1,
+          Math.round(
+            gpsDurationSeconds / 60,
+          ),
+        ).toString()
+
+    const skillAssessments: SkillAssessment[] =
+      selectedLessonSkills.map((skillId) => {
+        const currentPractice =
+          getLessonPractice(skillId)
+        const confidenceAfter =
+          getLessonConfidence(skillId)
+
+        return {
+          skillId,
+          confidenceBefore:
+            currentSkillState[skillId]
+              .confidence,
+          confidenceAfter,
+          needsMorePractice:
+            currentPractice.needsMorePractice,
+          supervisorNote:
+            currentPractice.note.trim() ||
+            undefined,
+        }
+      })
+
+    const newLesson: Lesson = {
+      id: Date.now(),
+      date: lessonDate,
+      duration: finalDuration,
+      roadType,
+      objectives,
+      skills: selectedLessonSkills,
+      lessonType: plannedLessonSkill
+        ? 'Guided'
+        : 'Unguided',
+      primarySkillId:
+        plannedLessonSkill?.id,
+      skillAssessments,
+      wentWell,
+      needsWork,
+      nextLesson,
+      route: recordedRoute,
+      gpsDurationSeconds,
+      gpsDistanceMiles,
+      reflectionMarkers: [],
+    }
 
     setLessons((currentLessons) => [
       newLesson,
@@ -793,6 +1495,10 @@ function App({
     setLessonDuration('')
     setObjectives('')
     setSelectedLessonSkills([])
+    setLessonConfidenceDraft({})
+    setLessonPracticeDraft({})
+    setPracticeNoteSkillId(null)
+    setPracticeNoteDraft('')
     setWentWell('')
     setNeedsWork('')
     setNextLesson('')
@@ -800,6 +1506,18 @@ function App({
     setGpsDurationSeconds(0)
     setGpsDistanceMiles(0)
     setPlannedLessonSkill(null)
+    setLessonSessionState('setup')
+    setLessonSetupOpen(false)
+    setIsChoosingLessonSkill(false)
+    setSelectedLessonId(newLesson.id)
+    setEditingLessonId(null)
+    setIsAddingMarker(false)
+    setActiveTab('progress')
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
   }
 
   const deleteLesson = (
@@ -864,6 +1582,13 @@ function App({
               roadType: editRoadType,
               objectives: editObjectives,
               skills: editSkills,
+              skillAssessments:
+                lesson.skillAssessments?.filter(
+                  (assessment) =>
+                    editSkills.includes(
+                      assessment.skillId,
+                    ),
+                ),
               wentWell: editWentWell,
               needsWork: editNeedsWork,
               nextLesson: editNextLesson,
@@ -960,7 +1685,6 @@ function App({
   const exportBackup = () => {
     const fileContents = JSON.stringify(
       {
-        progress,
         lessons,
         profile,
       },
@@ -1019,36 +1743,9 @@ function App({
         await backupFile.text(),
       ) as Partial<BackupData>
 
-      if (
-        !parsedData.progress ||
-        typeof parsedData.progress !==
-          'object' ||
-        !Array.isArray(
-          parsedData.lessons,
-        )
-      ) {
-        throw new Error(
-          'Invalid backup',
-        )
+      if (!Array.isArray(parsedData.lessons)) {
+        throw new Error('Invalid backup')
       }
-
-      const restoredProgress =
-        createDefaultProgress()
-
-      allSkills.forEach((skill) => {
-        const restoredLevel =
-          parsedData.progress?.[skill.id]
-
-        if (
-          restoredLevel &&
-          progressLevels.includes(
-            restoredLevel,
-          )
-        ) {
-          restoredProgress[skill.id] =
-            restoredLevel
-        }
-      })
 
       const validLessons =
         parsedData.lessons.filter(
@@ -1073,7 +1770,7 @@ function App({
 
       const confirmed =
         window.confirm(
-          'Restore this backup? Your current progress and lesson history will be replaced.',
+          'Restore this backup? Your current confidence data and lesson history will be replaced.',
         )
 
       if (!confirmed) {
@@ -1081,7 +1778,6 @@ function App({
         return
       }
 
-      setProgress(restoredProgress)
       setLessons(validLessons)
       setSelectedLessonId(null)
       setEditingLessonId(null)
@@ -1123,8 +1819,18 @@ function App({
         })
       }
 
+      const restoredConfidenceData =
+        validLessons.some(
+          (lesson) =>
+            (lesson.skillAssessments
+              ?.length ?? 0) > 0,
+        )
+
       setBackupMessage(
-        'Backup restored successfully.',
+        parsedData.progress &&
+          !restoredConfidenceData
+          ? 'Backup restored. Existing lessons were kept, but the old progress labels were not converted into confidence ratings.'
+          : 'Backup restored successfully.',
       )
 
       setResetMessage('')
@@ -1140,7 +1846,7 @@ function App({
   const resetLearnerData = () => {
     const confirmation =
       window.prompt(
-        `This will permanently delete all of ${profile.name}’s skill progress, lesson history and routes.\n\nType RESET to continue.`,
+        `This will permanently delete all of ${profile.name}’s confidence ratings, practice flags, lesson history and routes.\n\nType RESET to continue.`,
       )
 
     if (confirmation === null) return
@@ -1156,18 +1862,22 @@ function App({
       return
     }
 
-    setProgress(
-      createDefaultProgress(),
-    )
-
     setLessons([])
     setSelectedSkill(null)
     setSelectedLessonId(null)
     setEditingLessonId(null)
     setIsAddingMarker(false)
+    gpsRecorderRef.current?.discardRecording()
     setRecordedRoute([])
     setGpsDurationSeconds(0)
     setGpsDistanceMiles(0)
+    setLessonConfidenceDraft({})
+    setLessonPracticeDraft({})
+    setPracticeNoteSkillId(null)
+    setPracticeNoteDraft('')
+    setLessonSessionState('setup')
+    setLessonSetupOpen(false)
+    setPlannedLessonSkill(null)
     setBackupMessage('')
 
     setResetMessage(
@@ -1220,6 +1930,7 @@ function App({
     setSelectedLessonId(lessonId)
     setEditingLessonId(null)
     setIsAddingMarker(false)
+    setProgressView('overview')
     setActiveTab('progress')
 
     window.scrollTo({
@@ -1260,22 +1971,26 @@ function App({
           <h2>Building confidence</h2>
 
           <p>
-            Keep each session calm,
-            focused and consistent.
+            {ratedSkillCount === 0
+              ? 'Confidence ratings will build up after each recorded lesson.'
+              : `${ratedSkillCount} of ${allSkills.length} skills rated${
+                  averageConfidence !== null
+                    ? ` · ${averageConfidence.toFixed(
+                        1,
+                      )}/5 average`
+                    : ''
+                }.`}
           </p>
         </div>
 
         <ProgressRing
-          percentage={overallProgress}
+          percentage={confidenceCoverage}
         />
       </section>
 
       <button
         className="start-button"
-        onClick={() => {
-          setPlannedLessonSkill(null)
-          setActiveTab('lesson')
-        }}
+        onClick={openLessonHub}
       >
         <span>
           <strong>
@@ -1283,8 +1998,8 @@ function App({
           </strong>
 
           <small>
-            Plan objectives and record
-            the drive
+            Choose a guided focus or
+            record an unguided drive
           </small>
         </span>
 
@@ -1296,21 +2011,31 @@ function App({
           Recommended next
         </p>
 
-        <h2>Moving off safely</h2>
+        <h2>{recommendedSkill.name}</h2>
 
-        <div className="lesson-card">
-          <h3>
-            Quiet-road control session
-          </h3>
+        <button
+          type="button"
+          className="lesson-card lesson-summary-link"
+          onClick={() =>
+            planPracticeSession(
+              recommendedSkill,
+            )
+          }
+        >
+          <span>
+            <strong>
+              Guided practice session
+            </strong>
 
-          <p>
-            Practise observations,
-            smooth control and
-            controlled stopping.
-          </p>
+            <small>
+              {recommendedReason}
+            </small>
+          </span>
 
-          <span>30–40 minutes</span>
-        </div>
+          <span className="skill-chevron">
+            ›
+          </span>
+        </button>
       </section>
 
       {lessons.length > 0 && (
@@ -1366,6 +2091,9 @@ function App({
   const renderSkillDetail = () => {
     if (!selectedSkill) return null
 
+    const skillState =
+      currentSkillState[selectedSkill.id]
+
     return (
       <section>
         <button
@@ -1384,30 +2112,31 @@ function App({
 
         <h1>{selectedSkill.name}</h1>
 
-        <div className="lesson-card">
-          <h3>Current progress</h3>
+        <div className="lesson-card confidence-current-card">
+          <p className="section-label">
+            Current learner confidence
+          </p>
 
-          <select
-            className="progress-select"
-            value={
-              progress[selectedSkill.id]
-            }
-            onChange={(event) =>
-              updateProgress(
-                selectedSkill.id,
-                event.target
-                  .value as ProgressLevel,
-              )
-            }
-          >
-            {progressLevels.map(
-              (level) => (
-                <option key={level}>
-                  {level}
-                </option>
-              ),
+          <h3>
+            {formatConfidence(
+              skillState.confidence,
             )}
-          </select>
+          </h3>
+
+          <p>
+            Confidence is updated from the
+            reflection at the end of a
+            recorded lesson.
+          </p>
+
+          {skillState.needsMorePractice && (
+            <div className="practice-flag-summary">
+              <strong>Needs more practice</strong>
+              {skillState.note && (
+                <span>{skillState.note}</span>
+              )}
+            </div>
+          )}
         </div>
 
         <button
@@ -1425,7 +2154,8 @@ function App({
             </strong>
 
             <small>
-              Prefill the lesson record and open the guided plan
+              Record a lesson and update
+              confidence afterwards
             </small>
           </span>
 
@@ -1448,28 +2178,32 @@ function App({
     return (
       <section>
         <p className="section-label">
-          Official DVSA record
+          DVSA skills
         </p>
 
         <h1>Driving skills</h1>
 
         <p>
-          Update progress directly from
-          the list, or open a skill for
-          full guidance.
+          Confidence is based on lesson
+          reflections, not a pass/fail
+          grading scale. Tap a skill for
+          guidance and its current picture.
         </p>
 
         <div className="lesson-card skills-summary">
           <h3>
-            {completedSkills} of{' '}
-            {allSkills.length}{' '}
-            independently achieved
+            {ratedSkillCount} of{' '}
+            {allSkills.length} skills rated
           </h3>
 
           <p>
-            Skills count towards
-            completion at Independent
-            or Reflection.
+            {needsMorePracticeCount > 0
+              ? `${needsMorePracticeCount} skill${
+                  needsMorePracticeCount === 1
+                    ? ''
+                    : 's'
+                } currently marked as needing more practice.`
+              : 'No skills are currently flagged as needing more practice.'}
           </p>
         </div>
 
@@ -1482,343 +2216,737 @@ function App({
               {group.name}
             </p>
 
-            {group.skills.map(
-              (skill) => (
-                <div
-                  className="lesson-card quick-skill-card"
+            {group.skills.map((skill) => {
+              const skillState =
+                currentSkillState[skill.id]
+
+              return (
+                <button
+                  type="button"
+                  className="lesson-card confidence-skill-row"
                   key={skill.id}
+                  onClick={() =>
+                    setSelectedSkill(skill)
+                  }
                 >
-                  <button
-                    type="button"
-                    className="quick-skill-name"
-                    onClick={() =>
-                      setSelectedSkill(
-                        skill,
-                      )
-                    }
-                  >
+                  <span className="confidence-skill-copy">
                     <strong>
-                      {skill.id}.{' '}
-                      {skill.name}
+                      {skill.id}. {skill.name}
                     </strong>
 
                     <small>
-                      Tap for guidance
+                      {formatConfidence(
+                        skillState.confidence,
+                      )}
                     </small>
-                  </button>
 
-                  <select
-                    className="progress-select quick-progress-select"
-                    value={
-                      progress[skill.id]
-                    }
-                    onChange={(event) =>
-                      updateProgress(
-                        skill.id,
-                        event.target
-                          .value as ProgressLevel,
-                      )
-                    }
-                  >
-                    {progressLevels.map(
-                      (level) => (
-                        <option
-                          key={level}
-                        >
-                          {level}
-                        </option>
-                      ),
+                    {skillState.needsMorePractice && (
+                      <small className="needs-practice-inline">
+                        Needs more practice
+                      </small>
                     )}
-                  </select>
-                </div>
-              ),
-            )}
+                  </span>
+
+                  <span className="skill-chevron">
+                    ›
+                  </span>
+                </button>
+              )
+            })}
           </section>
         ))}
       </section>
     )
   }
 
-  const renderLesson = () => (
-    <section>
-      <p className="section-label">
-        Private practice
-      </p>
+  const renderLesson = () => {
+    if (!lessonSetupOpen) {
+      const recommendedGuidance =
+        skillGuidance[recommendedSkill.id]
 
-      <h1>Record a lesson</h1>
+      return (
+        <section>
+          <p className="section-label">
+            Practice
+          </p>
 
-      <p>
-        Set this up before driving,
-        then complete the reflection
-        once safely parked.
-      </p>
-
-      {lessonSaved && (
-        <div className="lesson-card skills-summary">
-          <h3>Lesson saved</h3>
+          <h1>Start a lesson</h1>
 
           <p>
-            The lesson has been saved
-            on this device.
+            Choose what to focus on before
+            the drive. Guided lessons include
+            Instructor Mode throughout the
+            session.
           </p>
-        </div>
-      )}
 
-      {plannedLessonSkill && (
-        <>
-          <div className="lesson-card skills-summary">
+          {lessonSaved && (
+            <div className="lesson-card skills-summary">
+              <h3>Lesson saved</h3>
+
+              <p>
+                The lesson has been saved on
+                this device.
+              </p>
+            </div>
+          )}
+
+          <div className="lesson-card spaced-card">
             <p className="section-label">
-              Planned from Skills
+              Recommended next lesson
             </p>
 
-            <h3>
-              {plannedLessonSkill.id}.{' '}
-              {plannedLessonSkill.name}
-            </h3>
+            <h2>
+              {recommendedSkill.id}.{' '}
+              {recommendedSkill.name}
+            </h2>
 
             <p>
-              The skill, objective, duration
-              and suggested road type have
-              been filled in. Adjust anything
-              before starting.
+              {recommendedGuidance?.summary ??
+                `Continue building confidence with ${recommendedSkill.name.toLowerCase()}.`}
+            </p>
+
+            <p>
+              <strong>Confidence:</strong>{' '}
+              {formatConfidence(
+                recommendedSkillState.confidence,
+              )}
+            </p>
+
+            <p>{recommendedReason}</p>
+
+            <button
+              type="button"
+              className="start-button"
+              onClick={() =>
+                planPracticeSession(
+                  recommendedSkill,
+                )
+              }
+            >
+              <span>
+                <strong>
+                  Start recommended lesson
+                </strong>
+
+                <small>
+                  Guided session · Instructor
+                  Mode included
+                </small>
+              </span>
+
+              <span>›</span>
+            </button>
+          </div>
+
+          <div className="lesson-card spaced-card">
+            <h3>Choose a skill to focus on</h3>
+
+            <p>
+              Pick any syllabus skill and
+              JackTrack will build a guided
+              practice session around it.
             </p>
 
             <button
               type="button"
               className="text-button full-text-button"
               onClick={() =>
-                setPlannedLessonSkill(null)
+                setIsChoosingLessonSkill(
+                  (currentValue) =>
+                    !currentValue,
+                )
               }
             >
-              Remove guided plan
+              {isChoosingLessonSkill
+                ? 'Hide skill list'
+                : 'Choose a skill'}
             </button>
           </div>
 
-          <StructuredLessonPlan
-            skillId={plannedLessonSkill.id}
-            skillName={
-              plannedLessonSkill.name
-            }
-            learner={profile}
-          />
-        </>
-      )}
+          {isChoosingLessonSkill &&
+            skillGroups.map((group) => (
+              <section
+                className="skill-group"
+                key={group.name}
+              >
+                <p className="section-label">
+                  {group.name}
+                </p>
 
-      <GpsRecorder
-        ref={gpsRecorderRef}
-        onRouteFinished={(
-          route,
-          durationSeconds,
-          distanceMiles,
-        ) => {
-          setRecordedRoute(route)
+                {group.skills.map(
+                  (skill) => (
+                    <div
+                      className="lesson-card quick-skill-card"
+                      key={skill.id}
+                    >
+                      <button
+                        type="button"
+                        className="quick-skill-name"
+                        onClick={() =>
+                          planPracticeSession(
+                            skill,
+                          )
+                        }
+                      >
+                        <strong>
+                          {skill.id}.{' '}
+                          {skill.name}
+                        </strong>
 
-          setGpsDurationSeconds(
-            durationSeconds,
-          )
+                        <small>
+                          {formatConfidence(
+                            currentSkillState[
+                              skill.id
+                            ].confidence,
+                          )}
+                          {' · '}Start guided
+                          lesson
+                        </small>
+                      </button>
 
-          setGpsDistanceMiles(
-            distanceMiles,
-          )
+                      <span className="skill-chevron">
+                        ›
+                      </span>
+                    </div>
+                  ),
+                )}
+              </section>
+            ))}
 
-          if (
-            durationSeconds > 0 &&
-            !lessonDuration.trim()
-          ) {
-            setLessonDuration(
-              Math.max(
-                1,
-                Math.round(
-                  durationSeconds / 60,
-                ),
-              ).toString(),
-            )
-          }
-        }}
-      />
+          <div className="lesson-card spaced-card">
+            <p className="section-label">
+              Flexible practice
+            </p>
 
-      {recordedRoute.length > 0 && (
-        <div className="lesson-card spaced-card">
-          <h3>Route ready</h3>
+            <h3>Record an unguided lesson</h3>
 
-          <p>
-            {recordedRoute.length} GPS
-            points ·{' '}
-            {gpsDistanceMiles.toFixed(
-              2,
-            )}{' '}
-            miles ·{' '}
-            {formatGpsTime(
-              gpsDurationSeconds,
-            )}
-          </p>
-        </div>
-      )}
+            <p>
+              Use this when you already know
+              what you want to practise or
+              you are going for an ad-hoc
+              drive.
+            </p>
 
-      <div className="lesson-card spaced-card">
-        <h3>Date</h3>
+            <button
+              type="button"
+              className="text-button full-text-button"
+              onClick={startUnguidedLesson}
+            >
+              Record unguided lesson
+            </button>
+          </div>
+        </section>
+      )
+    }
 
-        <input
-          className="progress-select"
-          type="date"
-          value={lessonDate}
-          onChange={(event) =>
-            setLessonDate(
-              event.target.value,
-            )
-          }
-        />
-      </div>
-
-      <div className="lesson-card spaced-card">
-        <h3>
-          Duration in minutes
-        </h3>
-
-        <input
-          className="progress-select"
-          type="number"
-          min="1"
-          value={lessonDuration}
-          onChange={(event) =>
-            setLessonDuration(
-              event.target.value,
-            )
-          }
-        />
-      </div>
-
-      <div className="lesson-card spaced-card">
-        <h3>Road type</h3>
-
-        <select
-          className="progress-select"
-          value={roadType}
-          onChange={(event) =>
-            setRoadType(
-              event.target.value,
-            )
-          }
+    return (
+      <section>
+        <button
+          className="text-button"
+          type="button"
+          onClick={openLessonHub}
         >
-          {roadTypes.map((option) => (
-            <option key={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </div>
+          ‹ Back to lesson choices
+        </button>
 
-      <div className="lesson-card spaced-card">
-        <h3>Lesson objectives</h3>
+        <p className="section-label">
+          {plannedLessonSkill
+            ? 'Guided practice'
+            : 'Unguided practice'}
+        </p>
 
-        <textarea
-          className="progress-select"
-          rows={4}
-          value={objectives}
-          onChange={(event) =>
-            setObjectives(
-              event.target.value,
-            )
-          }
-        />
-      </div>
+        <h1>
+          {plannedLessonSkill
+            ? plannedLessonSkill.name
+            : 'Unguided lesson'}
+        </h1>
 
-      <div className="lesson-card spaced-card">
-        <h3>Skills practised</h3>
+        {lessonSessionState === 'setup' && (
+          <p>
+            Set up the lesson while safely
+            parked. One press of Start lesson
+            will begin both the lesson timer
+            and GPS recording.
+          </p>
+        )}
 
-        {allSkills.map((skill) => (
-          <label
-            className="skill-checkbox"
-            key={skill.id}
-          >
-            <input
-              type="checkbox"
-              checked={selectedLessonSkills.includes(
-                skill.id,
-              )}
-              onChange={() =>
-                toggleLessonSkill(
-                  skill.id,
-                )
+        {lessonSessionState === 'active' && (
+          <div className="lesson-card skills-summary">
+            <p className="section-label">
+              Live lesson
+            </p>
+
+            <h3>Lesson in progress</h3>
+
+            <p>
+              GPS and the lesson timer are
+              running together. Keep
+              JackTrack open and the screen
+              unlocked. Only use the app when
+              safely parked.
+            </p>
+          </div>
+        )}
+
+        {lessonSessionState === 'review' && (
+          <div className="lesson-card skills-summary">
+            <p className="section-label">
+              Lesson finished
+            </p>
+
+            <h3>GPS has stopped</h3>
+
+            <p>
+              Review what happened, update
+              the skills practised and save
+              the lesson when ready.
+            </p>
+          </div>
+        )}
+
+        {lessonSessionState === 'setup' && (
+          <>
+            <button
+              className="start-button"
+              type="button"
+              onClick={startLesson}
+            >
+              <span>
+                <strong>Start lesson</strong>
+
+                <small>
+                  Starts the lesson timer and
+                  GPS together
+                </small>
+              </span>
+
+              <span>●</span>
+            </button>
+
+            <p className="lesson-plan-note">
+              Start only when safely parked.
+              There is no separate GPS start
+              button.
+            </p>
+          </>
+        )}
+
+        {plannedLessonSkill && (
+          <>
+            <div className="lesson-card skills-summary">
+              <p className="section-label">
+                Main lesson focus
+              </p>
+
+              <h3>
+                {plannedLessonSkill.id}.{' '}
+                {plannedLessonSkill.name}
+              </h3>
+
+              <p>
+                Instructor Mode below guides
+                the practice session. Other
+                skills can still be added to
+                the record afterwards.
+              </p>
+            </div>
+
+            <StructuredLessonPlan
+              skillId={
+                plannedLessonSkill.id
+              }
+              skillName={
+                plannedLessonSkill.name
+              }
+              learner={profile}
+              lessonStarted={
+                lessonSessionState !== 'setup'
               }
             />
+          </>
+        )}
 
-            <span>
-              {skill.id}. {skill.name}
-            </span>
-          </label>
-        ))}
-      </div>
-
-      <div className="lesson-card spaced-card">
-        <h3>What went well?</h3>
-
-        <textarea
-          className="progress-select"
-          rows={4}
-          value={wentWell}
-          onChange={(event) =>
-            setWentWell(
-              event.target.value,
+        <GpsRecorder
+          ref={gpsRecorderRef}
+          onRouteFinished={(
+            route,
+            durationSeconds,
+            distanceMiles,
+          ) => {
+            setRecordedRoute(route)
+            setGpsDurationSeconds(
+              durationSeconds,
             )
-          }
-        />
-      </div>
-
-      <div className="lesson-card spaced-card">
-        <h3>
-          What needs more work?
-        </h3>
-
-        <textarea
-          className="progress-select"
-          rows={4}
-          value={needsWork}
-          onChange={(event) =>
-            setNeedsWork(
-              event.target.value,
+            setGpsDistanceMiles(
+              distanceMiles,
             )
-          }
+          }}
+          onRecordingInterrupted={() => {
+            setLessonSessionState('setup')
+          }}
         />
-      </div>
 
-      <div className="lesson-card spaced-card">
-        <h3>
-          Recommended next lesson
-        </h3>
+        {lessonSessionState === 'active' && (
+          <>
+            <button
+              className="start-button"
+              type="button"
+              onClick={finishLesson}
+            >
+              <span>
+                <strong>Finish lesson</strong>
 
-        <textarea
-          className="progress-select"
-          rows={3}
-          value={nextLesson}
-          onChange={(event) =>
-            setNextLesson(
-              event.target.value,
-            )
-          }
-        />
-      </div>
+                <small>
+                  Stops GPS and opens the
+                  reflection before saving
+                </small>
+              </span>
 
-      <button
-        className="start-button"
-        type="button"
-        onClick={saveLesson}
-      >
-        <span>
-          <strong>
-            Finish and save lesson
-          </strong>
+              <span>■</span>
+            </button>
 
-          <small>
-            Stop GPS and add this session
-            to lesson history
-          </small>
-        </span>
+            <p className="lesson-plan-note">
+              Finish only when safely parked.
+            </p>
 
-        <span>›</span>
-      </button>
-    </section>
-  )
+            <button
+              type="button"
+              className="text-button gps-discard-button"
+              onClick={discardCurrentLesson}
+            >
+              Discard current lesson
+            </button>
+          </>
+        )}
+
+        {lessonSessionState !== 'active' && (
+          <>
+            <div className="lesson-card spaced-card">
+              <h3>Date</h3>
+
+              <input
+                className="progress-select"
+                type="date"
+                value={lessonDate}
+                onChange={(event) =>
+                  setLessonDate(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            {lessonSessionState ===
+              'review' && (
+              <div className="lesson-card spaced-card">
+                <h3>
+                  Duration in minutes
+                </h3>
+
+                <input
+                  className="progress-select"
+                  type="number"
+                  min="1"
+                  value={lessonDuration}
+                  onChange={(event) =>
+                    setLessonDuration(
+                      event.target.value,
+                    )
+                  }
+                />
+              </div>
+            )}
+
+            <div className="lesson-card spaced-card">
+              <h3>Road type</h3>
+
+              <select
+                className="progress-select"
+                value={roadType}
+                onChange={(event) =>
+                  setRoadType(
+                    event.target.value,
+                  )
+                }
+              >
+                {roadTypes.map((option) => (
+                  <option key={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="lesson-card spaced-card">
+              <h3>Lesson objectives</h3>
+
+              <textarea
+                className="progress-select"
+                rows={4}
+                value={objectives}
+                onChange={(event) =>
+                  setObjectives(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+          </>
+        )}
+
+        {lessonSessionState === 'review' && (
+          <>
+            <div className="lesson-card spaced-card">
+              <h3>GPS summary</h3>
+
+              <p>
+                {recordedRoute.length} GPS
+                points ·{' '}
+                {gpsDistanceMiles.toFixed(
+                  2,
+                )}{' '}
+                miles ·{' '}
+                {formatGpsTime(
+                  gpsDurationSeconds,
+                )}
+              </p>
+            </div>
+
+            <div
+              ref={reviewReflectionRef}
+              className="lesson-card spaced-card"
+            >
+              <h3>What went well?</h3>
+
+              <textarea
+                className="progress-select"
+                rows={4}
+                value={wentWell}
+                onChange={(event) =>
+                  setWentWell(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            <div className="lesson-card spaced-card">
+              <h3>Skills practised</h3>
+
+              <p>
+                {plannedLessonSkill
+                  ? 'The main focus is already selected. Add any other skills that came up during the drive.'
+                  : 'Select the skills that were actually practised during this drive.'}
+              </p>
+
+              {allSkills.map((skill) => (
+                <label
+                  className="skill-checkbox"
+                  key={skill.id}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedLessonSkills.includes(
+                      skill.id,
+                    )}
+                    onChange={() =>
+                      toggleLessonSkill(
+                        skill.id,
+                      )
+                    }
+                  />
+
+                  <span>
+                    {skill.id}.{' '}
+                    {skill.name}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            {selectedLessonSkills.length > 0 && (
+              <div className="lesson-card spaced-card">
+                <p className="section-label">
+                  Confidence after this lesson
+                </p>
+
+                <h3>How confident does {profile.name} feel?</h3>
+
+                <p>
+                  Rate only how confident the learner feels. The supervisor can separately flag anything that still needs more practice.
+                </p>
+
+                <div className="lesson-confidence-list">
+                  {selectedLessonSkills.map(
+                    (skillId) => {
+                      const skill =
+                        allSkills.find(
+                          (candidate) =>
+                            candidate.id ===
+                            skillId,
+                        )
+
+                      if (!skill) return null
+
+                      const currentPractice =
+                        getLessonPractice(
+                          skillId,
+                        )
+
+                      return (
+                        <div
+                          className="lesson-confidence-item"
+                          key={skillId}
+                        >
+                          <div className="confidence-item-heading">
+                            <div>
+                              <strong>
+                                {skill.id}.{' '}
+                                {skill.name}
+                              </strong>
+
+                              <span>
+                                Previous:{' '}
+                                {formatConfidence(
+                                  currentSkillState[
+                                    skillId
+                                  ].confidence,
+                                )}
+                              </span>
+                            </div>
+                          </div>
+
+                          <ConfidenceSlider
+                            value={getLessonConfidence(
+                              skillId,
+                            )}
+                            onChange={(rating) =>
+                              updateLessonConfidence(
+                                skillId,
+                                rating,
+                              )
+                            }
+                            label={`${skill.name} confidence`}
+                          />
+
+                          <label className="needs-practice-check">
+                            <input
+                              type="checkbox"
+                              checked={
+                                currentPractice.needsMorePractice
+                              }
+                              onChange={(event) =>
+                                setLessonNeedsMorePractice(
+                                  skillId,
+                                  event.target
+                                    .checked,
+                                )
+                              }
+                            />
+
+                            <span>
+                              <strong>
+                                Needs more practice
+                              </strong>
+                              <small>
+                                Supervisor flag
+                              </small>
+                            </span>
+                          </label>
+
+                          {currentPractice.note && (
+                            <div className="practice-note-preview">
+                              <strong>Supervisor note</strong>
+                              <span>
+                                {currentPractice.note}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPracticeNoteSkillId(
+                                    skillId,
+                                  )
+                                  setPracticeNoteDraft(
+                                    currentPractice.note,
+                                  )
+                                }}
+                              >
+                                Edit note
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    },
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="lesson-card spaced-card">
+              <h3>
+                What needs more work?
+              </h3>
+
+              <textarea
+                className="progress-select"
+                rows={4}
+                value={needsWork}
+                onChange={(event) =>
+                  setNeedsWork(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            <div className="lesson-card spaced-card">
+              <h3>
+                Recommended next lesson
+              </h3>
+
+              <textarea
+                className="progress-select"
+                rows={3}
+                value={nextLesson}
+                onChange={(event) =>
+                  setNextLesson(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            <button
+              className="start-button"
+              type="button"
+              onClick={saveLesson}
+            >
+              <span>
+                <strong>Save lesson</strong>
+
+                <small>
+                  Add this session and GPS
+                  route to lesson history
+                </small>
+              </span>
+
+              <span>✓</span>
+            </button>
+
+            <button
+              type="button"
+              className="text-button gps-discard-button"
+              onClick={discardCurrentLesson}
+            >
+              Discard unsaved lesson
+            </button>
+          </>
+        )}
+      </section>
+    )
+  }
 
   const renderLessonEditor = (
     lesson: Lesson,
@@ -2261,16 +3389,61 @@ function App({
           <h3>Skills practised</h3>
 
           {lesson.skills.length > 0 ? (
-            <div className="summary-skill-list">
+            <div className="lesson-assessment-summary-list">
               {lesson.skills.map(
-                (skillId) => (
-                  <span key={skillId}>
-                    {skillId}.{' '}
-                    {getSkillName(
-                      skillId,
-                    )}
-                  </span>
-                ),
+                (skillId) => {
+                  const assessment =
+                    lesson.skillAssessments?.find(
+                      (item) =>
+                        item.skillId === skillId,
+                    )
+
+                  return (
+                    <div
+                      className="lesson-assessment-summary"
+                      key={skillId}
+                    >
+                      <strong>
+                        {skillId}.{' '}
+                        {getSkillName(skillId)}
+                      </strong>
+
+                      {assessment ? (
+                        <>
+                          <span>
+                            Confidence:{' '}
+                            {assessment.confidenceBefore ===
+                            assessment.confidenceAfter
+                              ? formatConfidence(
+                                  assessment.confidenceAfter,
+                                )
+                              : `${formatConfidence(
+                                  assessment.confidenceBefore,
+                                )} → ${formatConfidence(
+                                  assessment.confidenceAfter,
+                                )}`}
+                          </span>
+
+                          {assessment.needsMorePractice && (
+                            <span className="needs-practice-inline">
+                              Needs more practice
+                            </span>
+                          )}
+
+                          {assessment.supervisorNote && (
+                            <small>
+                              {assessment.supervisorNote}
+                            </small>
+                          )}
+                        </>
+                      ) : (
+                        <span>
+                          Confidence not recorded for this older lesson
+                        </span>
+                      )}
+                    </div>
+                  )
+                },
               )}
             </div>
           ) : (
@@ -2354,6 +3527,27 @@ function App({
       return renderLessonSummary()
     }
 
+    if (progressView === 'skills') {
+      return (
+        <section>
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => {
+              setSelectedSkill(null)
+              setProgressView(
+                'overview',
+              )
+            }}
+          >
+            ‹ Back to progress
+          </button>
+
+          {renderSkills()}
+        </section>
+      )
+    }
+
     return (
       <section>
         <p className="section-label">
@@ -2364,17 +3558,100 @@ function App({
 
         <div className="lesson-card skills-summary">
           <h3>
-            {overallProgress}%
-            independently achieved
+            {ratedSkillCount} of{' '}
+            {allSkills.length} skills have a
+            confidence rating
           </h3>
 
           <p>
-            {completedSkills} of{' '}
-            {allSkills.length} skills
-            are Independent or
-            Reflection.
+            {averageConfidence === null
+              ? 'Finish a lesson and rate confidence to start building this picture.'
+              : `Average confidence across rated skills is ${averageConfidence.toFixed(
+                  1,
+                )}/5.`}
           </p>
         </div>
+
+        {lowestConfidenceSkills.length > 0 && (
+          <div className="lesson-card spaced-card">
+            <p className="section-label">
+              Lowest confidence
+            </p>
+
+            <h3>Areas to build next</h3>
+
+            <div className="lowest-confidence-list">
+              {lowestConfidenceSkills.map(
+                (skill) => {
+                  const skillState =
+                    currentSkillState[skill.id]
+
+                  return (
+                    <button
+                      type="button"
+                      key={skill.id}
+                      onClick={() => {
+                        setSelectedSkill(skill)
+                        setProgressView('skills')
+                      }}
+                    >
+                      <span>
+                        <strong>
+                          {skill.name}
+                        </strong>
+                        <small>
+                          {formatConfidence(
+                            skillState.confidence,
+                          )}
+                          {skillState.needsMorePractice
+                            ? ' · Needs more practice'
+                            : ''}
+                        </small>
+                      </span>
+                      <span>›</span>
+                    </button>
+                  )
+                },
+              )}
+            </div>
+          </div>
+        )}
+
+        {needsMorePracticeCount > 0 && (
+          <div className="lesson-card spaced-card practice-attention-card">
+            <h3>Supervisor flags</h3>
+            <p>
+              {needsMorePracticeCount} skill{
+                needsMorePracticeCount === 1
+                  ? ''
+                  : 's'
+              } currently marked as needing more practice. These are prioritised when JackTrack recommends future lessons.
+            </p>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="lesson-card lesson-summary-link spaced-card"
+          onClick={() =>
+            setProgressView('skills')
+          }
+        >
+          <span>
+            <strong>
+              Skills confidence
+            </strong>
+
+            <small>
+              View all 27 skills, current
+              confidence and guidance
+            </small>
+          </span>
+
+          <span className="skill-chevron">
+            ›
+          </span>
+        </button>
 
         <div className="lesson-card spaced-card">
           <h3>Lessons recorded</h3>
@@ -2393,55 +3670,105 @@ function App({
 
             <h2>Previous lessons</h2>
 
-            {lessons.map((lesson) => (
-              <button
-                type="button"
-                className="lesson-card lesson-history-button"
-                key={lesson.id}
-                onClick={() =>
-                  navigateToLessonSummary(
-                    lesson.id,
-                  )
-                }
-              >
-                <span>
-                  <strong>
-                    {formatLessonDate(
-                      lesson.date,
+            {lessons.map((lesson) => {
+              const primarySkillId =
+                lesson.primarySkillId ??
+                lesson.skills[0]
+
+              const primarySkillName =
+                primarySkillId
+                  ? getSkillName(
+                      primarySkillId,
+                    )
+                  : null
+
+              const primaryAssessment =
+                primarySkillId
+                  ? lesson.skillAssessments?.find(
+                      (assessment) =>
+                        assessment.skillId ===
+                        primarySkillId,
+                    )
+                  : undefined
+
+              return (
+                <button
+                  type="button"
+                  className="lesson-card lesson-history-button"
+                  key={lesson.id}
+                  onClick={() =>
+                    navigateToLessonSummary(
+                      lesson.id,
+                    )
+                  }
+                >
+                  <span>
+                    <strong>
+                      {primarySkillName ??
+                        'Unguided practice'}
+                    </strong>
+
+                    <small>
+                      {formatLessonDate(
+                        lesson.date,
+                      )}
+                      {' · '}
+                      {lesson.duration}{' '}
+                      minutes
+                    </small>
+
+                    <small>
+                      {lesson.lessonType ??
+                        (lesson.primarySkillId
+                          ? 'Guided'
+                          : 'Recorded')}
+                      {' · '}
+                      {lesson.skills.length}{' '}
+                      skills
+                      {(lesson.route
+                        ?.length ?? 0) > 0
+                        ? ` · ${(
+                            lesson.gpsDistanceMiles ??
+                            0
+                          ).toFixed(
+                            2,
+                          )} GPS miles`
+                        : ''}
+                    </small>
+
+                    {primaryAssessment && (
+                      <small className="history-confidence-line">
+                        Confidence:{' '}
+                        {primaryAssessment.confidenceBefore ===
+                        primaryAssessment.confidenceAfter
+                          ? formatConfidence(
+                              primaryAssessment.confidenceAfter,
+                            )
+                          : `${formatConfidence(
+                              primaryAssessment.confidenceBefore,
+                            )} → ${formatConfidence(
+                              primaryAssessment.confidenceAfter,
+                            )}`}
+                        {primaryAssessment.needsMorePractice
+                          ? ' · Needs more practice'
+                          : ''}
+                      </small>
                     )}
-                  </strong>
 
-                  <small>
-                    {lesson.duration}{' '}
-                    minutes ·{' '}
-                    {lesson.roadType}
-                  </small>
+                    {lesson.nextLesson && (
+                      <small>
+                        Next:{' '}
+                        {lesson.nextLesson}
+                      </small>
+                    )}
+                  </span>
 
-                  <small>
-                    {lesson.skills.length}{' '}
-                    skills
-                    {(lesson.route
-                      ?.length ?? 0) > 0
-                      ? ` · ${(
-                          lesson.gpsDistanceMiles ??
-                          0
-                        ).toFixed(
-                          2,
-                        )} GPS miles`
-                      : ''}
-                    {(lesson
-                      .reflectionMarkers
-                      ?.length ?? 0) > 0
-                      ? ` · ${lesson.reflectionMarkers?.length} reflections`
-                      : ''}
-                  </small>
-                </span>
-
-                <span className="skill-chevron">
-                  ›
-                </span>
-              </button>
-            ))}
+                  <span className="skill-chevron">
+                    ›
+                  </span>
+                </button>
+              )
+            })}
           </section>
         )}
       </section>
@@ -2677,8 +4004,8 @@ function App({
         <h3>Offline saving</h3>
 
         <p>
-          Progress, lessons, GPS routes
-          and reflection markers are
+          Confidence ratings, lessons, GPS
+          routes and reflection markers are
           stored on this device.
           Internet is only required for
           maps and Street View.
@@ -2742,8 +4069,9 @@ function App({
 
         <p>
           Permanently delete all
-          progress, lessons, routes and
-          reflection markers for{' '}
+          confidence ratings, practice flags,
+          lessons, routes and reflection
+          markers for{' '}
           {profile.name}. The learner
           profile itself will remain.
         </p>
@@ -2770,9 +4098,6 @@ function App({
       case 'home':
         return renderHome()
 
-      case 'skills':
-        return renderSkills()
-
       case 'lesson':
         return renderLesson()
 
@@ -2785,11 +4110,36 @@ function App({
   }
 
   const changeTab = (tab: Tab) => {
+    if (tab === activeTab) {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      })
+      return
+    }
+
+    if (
+      activeTab === 'lesson' &&
+      lessonSetupOpen &&
+      !confirmLeaveUnsavedLesson()
+    ) {
+      return
+    }
+
     setActiveTab(tab)
     setSelectedSkill(null)
     setIsAddingMarker(false)
 
-    if (tab !== 'progress') {
+    if (tab === 'lesson') {
+      setLessonSetupOpen(false)
+      setIsChoosingLessonSkill(false)
+      setPlannedLessonSkill(null)
+      setLessonSessionState('setup')
+    }
+
+    if (tab === 'progress') {
+      setProgressView('overview')
+    } else {
       setSelectedLessonId(null)
     }
 
@@ -2802,11 +4152,80 @@ function App({
     <main className="app">
       {renderContent()}
 
+      {practiceNoteSkillId !== null && (
+        <div
+          className="practice-note-backdrop"
+          role="presentation"
+        >
+          <div
+            className="practice-note-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="practice-note-title"
+          >
+            <p className="section-label">
+              Supervisor flag
+            </p>
+
+            <h2 id="practice-note-title">
+              Add a comment?
+            </h2>
+
+            <p>
+              You marked{' '}
+              <strong>
+                {getSkillName(
+                  practiceNoteSkillId,
+                )}
+              </strong>{' '}
+              as needing more practice. Add an
+              optional note about what to focus
+              on next time.
+            </p>
+
+            <textarea
+              className="progress-select"
+              rows={4}
+              autoFocus
+              placeholder="e.g. Hesitates when choosing gaps on larger roundabouts"
+              value={practiceNoteDraft}
+              onChange={(event) =>
+                setPracticeNoteDraft(
+                  event.target.value,
+                )
+              }
+            />
+
+            <button
+              className="start-button"
+              type="button"
+              onClick={savePracticeNote}
+            >
+              <span>
+                <strong>Save note</strong>
+                <small>
+                  Keep this with the skill
+                  assessment
+                </small>
+              </span>
+              <span>✓</span>
+            </button>
+
+            <button
+              type="button"
+              className="text-button full-text-button"
+              onClick={skipPracticeNote}
+            >
+              Skip note
+            </button>
+          </div>
+        </div>
+      )}
+
       <nav className="bottom-nav">
         {(
           [
             ['home', 'Home'],
-            ['skills', 'Skills'],
             ['lesson', 'Lesson'],
             ['progress', 'Progress'],
             ['more', 'More'],

@@ -11,6 +11,7 @@ export type RoutePoint = {
   longitude: number
   timestamp: number
   accuracy: number
+  segmentBreak?: boolean
 }
 
 export type GpsRecordingResult = {
@@ -20,7 +21,9 @@ export type GpsRecordingResult = {
 }
 
 export type GpsRecorderHandle = {
+  startRecording: () => boolean
   finishRecording: () => GpsRecordingResult
+  discardRecording: () => void
   isRecording: () => boolean
 }
 
@@ -30,7 +33,18 @@ type GpsRecorderProps = {
     durationSeconds: number,
     distanceMiles: number,
   ) => void
+  onRecordingInterrupted?: () => void
 }
+
+type RecordingState =
+  | 'idle'
+  | 'recording'
+  | 'finished'
+
+const MAX_ACCEPTABLE_ACCURACY_METRES = 80
+const ROUTE_GAP_SECONDS = 20
+const MIN_MOVEMENT_METRES = 3
+const MAX_REALISTIC_SPEED_METRES_PER_SECOND = 55
 
 const calculateDistanceMetres = (
   firstPoint: RoutePoint,
@@ -40,16 +54,19 @@ const calculateDistanceMetres = (
 
   const latitudeOne =
     (firstPoint.latitude * Math.PI) / 180
+
   const latitudeTwo =
     (secondPoint.latitude * Math.PI) / 180
 
   const latitudeDifference =
-    ((secondPoint.latitude - firstPoint.latitude) *
+    ((secondPoint.latitude -
+      firstPoint.latitude) *
       Math.PI) /
     180
 
   const longitudeDifference =
-    ((secondPoint.longitude - firstPoint.longitude) *
+    ((secondPoint.longitude -
+      firstPoint.longitude) *
       Math.PI) /
     180
 
@@ -69,9 +86,15 @@ const calculateDistanceMetres = (
   return earthRadiusMetres * angularDistance
 }
 
-const formatElapsedTime = (seconds: number) => {
+const formatElapsedTime = (
+  seconds: number,
+) => {
   const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
+
+  const minutes = Math.floor(
+    (seconds % 3600) / 60,
+  )
+
   const remainingSeconds = seconds % 60
 
   if (hours > 0) {
@@ -91,96 +114,192 @@ const GpsRecorder = forwardRef<
   GpsRecorderHandle,
   GpsRecorderProps
 >(function GpsRecorder(
-  { onRouteFinished },
+  {
+    onRouteFinished,
+    onRecordingInterrupted,
+  },
   ref,
 ) {
-  const [isRecording, setIsRecording] =
-    useState(false)
+  const [recordingState, setRecordingState] =
+    useState<RecordingState>('idle')
+
   const [route, setRoute] = useState<
     RoutePoint[]
   >([])
-  const [elapsedSeconds, setElapsedSeconds] =
-    useState(0)
-  const [distanceMiles, setDistanceMiles] =
-    useState(0)
-  const [gpsMessage, setGpsMessage] = useState(
-    'Start the lesson when you are parked and ready to begin.',
-  )
 
-  const watchIdRef = useRef<number | null>(null)
-  const timerRef = useRef<number | null>(null)
-  const startTimeRef = useRef<number | null>(null)
-  const isRecordingRef = useRef(false)
-  const routeRef = useRef<RoutePoint[]>([])
-  const distanceMilesRef = useRef(0)
+  const [
+    elapsedSeconds,
+    setElapsedSeconds,
+  ] = useState(0)
+
+  const [
+    distanceMiles,
+    setDistanceMiles,
+  ] = useState(0)
+
+  const [gpsMessage, setGpsMessage] =
+    useState(
+      'GPS will start automatically when you press Start lesson.',
+    )
+
+  const [
+    recordingWarning,
+    setRecordingWarning,
+  ] = useState('')
+
+  const watchIdRef =
+    useRef<number | null>(null)
+
+  const timerRef =
+    useRef<number | null>(null)
+
+  const startTimeRef =
+    useRef<number | null>(null)
+
+  const isRecordingRef =
+    useRef(false)
+
+  const routeRef =
+    useRef<RoutePoint[]>([])
+
+  const distanceMilesRef =
+    useRef(0)
+
+  const forceNextSegmentBreakRef =
+    useRef(false)
 
   const clearTracking = () => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(
         watchIdRef.current,
       )
+
       watchIdRef.current = null
     }
 
     if (timerRef.current !== null) {
-      window.clearInterval(timerRef.current)
+      window.clearInterval(
+        timerRef.current,
+      )
+
       timerRef.current = null
     }
   }
 
-  const stopWithoutSaving = () => {
+  const stopAfterGpsError = () => {
     clearTracking()
+
     isRecordingRef.current = false
-    setIsRecording(false)
+    startTimeRef.current = null
+
+    setRecordingState('idle')
+
+    onRecordingInterrupted?.()
   }
 
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!isRecordingRef.current) {
+        return
+      }
+
+      if (document.hidden) {
+        forceNextSegmentBreakRef.current =
+          true
+
+        setRecordingWarning(
+          'JackTrack was backgrounded or the screen was locked. iPhone may pause GPS while this happens.',
+        )
+      } else {
+        forceNextSegmentBreakRef.current =
+          true
+
+        setGpsMessage(
+          'JackTrack is active again. GPS tracking will continue from the next reliable position.',
+        )
+      }
+    }
+
+    document.addEventListener(
+      'visibilitychange',
+      handleVisibilityChange,
+    )
+
     return () => {
+      document.removeEventListener(
+        'visibilitychange',
+        handleVisibilityChange,
+      )
+
       clearTracking()
     }
   }, [])
 
-  const beginRecording = () => {
-    if (isRecordingRef.current) return
+  const startRecording = () => {
+    if (isRecordingRef.current) {
+      setRecordingWarning(
+        'A lesson is already being recorded. Finish or discard the current lesson before starting another.',
+      )
+
+      return false
+    }
 
     if (!navigator.geolocation) {
       setGpsMessage(
         'GPS location is not supported by this device or browser.',
       )
-      return
+
+      return false
     }
 
     routeRef.current = []
     distanceMilesRef.current = 0
+    forceNextSegmentBreakRef.current = false
+
     setRoute([])
     setElapsedSeconds(0)
     setDistanceMiles(0)
+    setRecordingWarning('')
     setGpsMessage(
-      'Waiting for an accurate GPS position…',
+      'Waiting for a reliable GPS position…',
     )
 
     startTimeRef.current = Date.now()
     isRecordingRef.current = true
-    setIsRecording(true)
 
-    timerRef.current = window.setInterval(() => {
-      if (startTimeRef.current === null) return
+    setRecordingState('recording')
 
-      setElapsedSeconds(
-        Math.floor(
-          (Date.now() - startTimeRef.current) / 1000,
-        ),
-      )
-    }, 1000)
+    timerRef.current = window.setInterval(
+      () => {
+        if (startTimeRef.current === null) {
+          return
+        }
+
+        setElapsedSeconds(
+          Math.floor(
+            (Date.now() -
+              startTimeRef.current) /
+              1000,
+          ),
+        )
+      },
+      1000,
+    )
 
     watchIdRef.current =
       navigator.geolocation.watchPosition(
         (position) => {
-          const newPoint: RoutePoint = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            timestamp: position.timestamp,
-            accuracy: position.coords.accuracy,
+          if (
+            position.coords.accuracy >
+            MAX_ACCEPTABLE_ACCURACY_METRES
+          ) {
+            setGpsMessage(
+              `Waiting for better GPS accuracy · currently approximately ${Math.round(
+                position.coords.accuracy,
+              )} metres`,
+            )
+
+            return
           }
 
           const previousPoint =
@@ -188,31 +307,118 @@ const GpsRecorder = forwardRef<
               routeRef.current.length - 1
             ]
 
+          let shouldBreakSegment =
+            forceNextSegmentBreakRef.current
+
+          let distanceMetres = 0
+
           if (previousPoint) {
-            const distanceMetres =
-              calculateDistanceMetres(
-                previousPoint,
-                newPoint,
+            const timeDifferenceSeconds =
+              Math.max(
+                0,
+                (position.timestamp -
+                  previousPoint.timestamp) /
+                  1000,
               )
 
             if (
-              distanceMetres >= 4 &&
-              distanceMetres <= 500
+              timeDifferenceSeconds >
+              ROUTE_GAP_SECONDS
             ) {
-              distanceMilesRef.current +=
-                distanceMetres / 1609.344
+              shouldBreakSegment = true
 
-              setDistanceMiles(
-                distanceMilesRef.current,
+              setRecordingWarning(
+                'A gap in GPS recording was detected. JackTrack will show a break in the route rather than drawing an inaccurate straight line.',
               )
             }
+
+            distanceMetres =
+              calculateDistanceMetres(
+                previousPoint,
+                {
+                  latitude:
+                    position.coords.latitude,
+                  longitude:
+                    position.coords.longitude,
+                  timestamp:
+                    position.timestamp,
+                  accuracy:
+                    position.coords.accuracy,
+                },
+              )
+
+            if (
+              !shouldBreakSegment &&
+              timeDifferenceSeconds > 0
+            ) {
+              const calculatedSpeed =
+                distanceMetres /
+                timeDifferenceSeconds
+
+              if (
+                calculatedSpeed >
+                MAX_REALISTIC_SPEED_METRES_PER_SECOND
+              ) {
+                shouldBreakSegment = true
+
+                setRecordingWarning(
+                  'JackTrack rejected an unrealistic GPS jump and started a new route section.',
+                )
+              }
+            }
+          }
+
+          const newPoint: RoutePoint = {
+            latitude:
+              position.coords.latitude,
+            longitude:
+              position.coords.longitude,
+            timestamp:
+              position.timestamp,
+            accuracy:
+              position.coords.accuracy,
+            segmentBreak: Boolean(
+              previousPoint &&
+                shouldBreakSegment,
+            ),
+          }
+
+          if (
+            previousPoint &&
+            !shouldBreakSegment &&
+            distanceMetres <
+              MIN_MOVEMENT_METRES
+          ) {
+            setGpsMessage(
+              `GPS active · accuracy approximately ${Math.round(
+                position.coords.accuracy,
+              )} metres`,
+            )
+
+            return
+          }
+
+          if (
+            previousPoint &&
+            !shouldBreakSegment
+          ) {
+            distanceMilesRef.current +=
+              distanceMetres / 1609.344
+
+            setDistanceMiles(
+              distanceMilesRef.current,
+            )
           }
 
           routeRef.current = [
             ...routeRef.current,
             newPoint,
           ]
+
           setRoute(routeRef.current)
+
+          forceNextSegmentBreakRef.current =
+            false
 
           setGpsMessage(
             `GPS active · accuracy approximately ${Math.round(
@@ -221,177 +427,185 @@ const GpsRecorder = forwardRef<
           )
         },
         (error) => {
-          stopWithoutSaving()
+          stopAfterGpsError()
 
-          if (error.code === error.PERMISSION_DENIED) {
-            setGpsMessage(
-              'Location permission was denied. Allow location access in your browser settings, then try again.',
-            )
-          } else if (
-            error.code === error.POSITION_UNAVAILABLE
+          if (
+            error.code ===
+            error.PERMISSION_DENIED
           ) {
             setGpsMessage(
-              'Your location is currently unavailable. Move somewhere with a clearer view of the sky and try again.',
+              'Location permission was denied. Allow location access in your browser settings, then press Start lesson again.',
+            )
+          } else if (
+            error.code ===
+            error.POSITION_UNAVAILABLE
+          ) {
+            setGpsMessage(
+              'Your location is currently unavailable. Move somewhere with a clearer view of the sky, then press Start lesson again.',
             )
           } else {
             setGpsMessage(
-              'GPS timed out. Move somewhere with a clearer view of the sky and try again.',
+              'GPS timed out. Move somewhere with a clearer view of the sky, then press Start lesson again.',
             )
           }
         },
         {
           enableHighAccuracy: true,
-          maximumAge: 3000,
+          maximumAge: 1000,
           timeout: 15000,
         },
       )
+
+    return true
   }
 
-  const finishRecording = (): GpsRecordingResult => {
-    const durationSeconds =
-      startTimeRef.current === null
-        ? 0
-        : Math.max(
-            0,
-            Math.floor(
-              (Date.now() - startTimeRef.current) /
-                1000,
-            ),
-          )
+  const finishRecording =
+    (): GpsRecordingResult => {
+      const durationSeconds =
+        startTimeRef.current === null
+          ? elapsedSeconds
+          : Math.max(
+              0,
+              Math.floor(
+                (Date.now() -
+                  startTimeRef.current) /
+                  1000,
+              ),
+            )
 
-    const result: GpsRecordingResult = {
-      route: [...routeRef.current],
-      durationSeconds,
-      distanceMiles: distanceMilesRef.current,
+      const result: GpsRecordingResult = {
+        route: [...routeRef.current],
+        durationSeconds,
+        distanceMiles:
+          distanceMilesRef.current,
+      }
+
+      clearTracking()
+
+      isRecordingRef.current = false
+      startTimeRef.current = null
+
+      setRecordingState('finished')
+      setElapsedSeconds(durationSeconds)
+
+      setGpsMessage(
+        result.route.length > 0
+          ? 'Lesson finished. GPS route is ready to save with the lesson.'
+          : 'Lesson finished, but no reliable GPS position was received.',
+      )
+
+      onRouteFinished?.(
+        result.route,
+        result.durationSeconds,
+        result.distanceMiles,
+      )
+
+      return result
     }
 
+  const discardRecording = () => {
     clearTracking()
+
     isRecordingRef.current = false
     startTimeRef.current = null
-    setIsRecording(false)
-    setElapsedSeconds(durationSeconds)
+    routeRef.current = []
+    distanceMilesRef.current = 0
+    forceNextSegmentBreakRef.current = false
+
+    setRecordingState('idle')
+    setRoute([])
+    setElapsedSeconds(0)
+    setDistanceMiles(0)
+    setRecordingWarning('')
     setGpsMessage(
-      result.route.length > 0
-        ? 'GPS recording finished and attached to the lesson.'
-        : 'Recording stopped without receiving a GPS position.',
+      'GPS will start automatically when you press Start lesson.',
     )
-
-    onRouteFinished?.(
-      result.route,
-      result.durationSeconds,
-      result.distanceMiles,
-    )
-
-    return result
   }
 
   useImperativeHandle(
     ref,
     () => ({
+      startRecording,
       finishRecording,
-      isRecording: () => isRecordingRef.current,
+      discardRecording,
+      isRecording: () =>
+        isRecordingRef.current,
     }),
   )
 
-  const discardRecording = () => {
-    const confirmed = window.confirm(
-      'Discard this GPS recording?',
-    )
-
-    if (!confirmed) return
-
-    stopWithoutSaving()
-    startTimeRef.current = null
-    routeRef.current = []
-    distanceMilesRef.current = 0
-    setRoute([])
-    setElapsedSeconds(0)
-    setDistanceMiles(0)
-    setGpsMessage(
-      'GPS recording discarded. Start the lesson again when ready.',
-    )
-  }
+  const statusLabel =
+    recordingState === 'recording'
+      ? 'Recording'
+      : recordingState === 'finished'
+        ? 'Finished'
+        : 'Ready'
 
   return (
     <div className="lesson-card spaced-card gps-card">
       <div className="gps-heading">
         <div>
-          <p className="section-label">Required</p>
-          <h3>GPS lesson recording</h3>
+          <p className="section-label">
+            Automatic
+          </p>
+
+          <h3>GPS tracking</h3>
         </div>
 
         <span
           className={
-            isRecording
+            recordingState === 'recording'
               ? 'gps-status recording'
               : 'gps-status'
           }
         >
-          {isRecording ? 'Recording' : 'Not started'}
+          {statusLabel}
         </span>
       </div>
 
       <p>
-        Start this while safely parked. GPS will stop
-        automatically when you finish and save the lesson.
-        Do not interact with the app while supervising a
-        moving vehicle.
+        {recordingState === 'recording'
+          ? 'Lesson and GPS are running together. Keep JackTrack open and the screen unlocked for the most reliable route.'
+          : recordingState === 'finished'
+            ? 'GPS has stopped. Complete the lesson reflection and save when ready.'
+            : 'You do not need to start GPS separately. Press Start lesson below when safely parked and JackTrack will start both together.'}
       </p>
 
       <div className="gps-stat-grid">
         <div>
           <strong>
-            {formatElapsedTime(elapsedSeconds)}
+            {formatElapsedTime(
+              elapsedSeconds,
+            )}
           </strong>
+
           <span>elapsed</span>
         </div>
 
         <div>
-          <strong>{distanceMiles.toFixed(2)}</strong>
+          <strong>
+            {distanceMiles.toFixed(2)}
+          </strong>
+
           <span>miles</span>
         </div>
 
         <div>
           <strong>{route.length}</strong>
+
           <span>GPS points</span>
         </div>
       </div>
 
-      <p className="gps-message">{gpsMessage}</p>
+      <p className="gps-message">
+        {gpsMessage}
+      </p>
 
-      {!isRecording ? (
-        <button
-          type="button"
-          className="start-button"
-          onClick={beginRecording}
-        >
-          <span>
-            <strong>Start lesson and GPS</strong>
-            <small>
-              Begin recording the route and duration
-            </small>
-          </span>
+      {recordingWarning && (
+        <div className="lesson-card skills-summary">
+          <h3>GPS recording warning</h3>
 
-          <span>●</span>
-        </button>
-      ) : (
-        <>
-          <div className="lesson-card skills-summary">
-            <h3>Lesson in progress</h3>
-            <p>
-              When safely parked at the end, complete the
-              reflection and press Finish and save lesson.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="text-button gps-discard-button"
-            onClick={discardRecording}
-          >
-            Discard lesson recording
-          </button>
-        </>
+          <p>{recordingWarning}</p>
+        </div>
       )}
     </div>
   )
