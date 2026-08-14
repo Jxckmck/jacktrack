@@ -14,10 +14,20 @@ export type RoutePoint = {
   segmentBreak?: boolean
 }
 
+export type GpsCoverageSummary = {
+  isComplete: boolean
+  interruptedSeconds: number
+  longestGapSeconds: number
+  gapCount: number
+  coveragePercent: number
+  wasBackgrounded: boolean
+}
+
 export type GpsRecordingResult = {
   route: RoutePoint[]
   durationSeconds: number
   distanceMiles: number
+  coverage: GpsCoverageSummary
 }
 
 export type GpsRecorderHandle = {
@@ -32,6 +42,7 @@ type GpsRecorderProps = {
     route: RoutePoint[],
     durationSeconds: number,
     distanceMiles: number,
+    coverage: GpsCoverageSummary,
   ) => void
   onRecordingInterrupted?: () => void
 }
@@ -168,6 +179,20 @@ const GpsRecorder = forwardRef<
   const forceNextSegmentBreakRef =
     useRef(false)
 
+  const lastReliableFixAtRef =
+    useRef<number | null>(null)
+
+  const interruptedSecondsRef =
+    useRef(0)
+
+  const longestGapSecondsRef =
+    useRef(0)
+
+  const gapCountRef = useRef(0)
+
+  const wasBackgroundedRef =
+    useRef(false)
+
   const clearTracking = () => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(
@@ -206,6 +231,7 @@ const GpsRecorder = forwardRef<
       if (document.hidden) {
         forceNextSegmentBreakRef.current =
           true
+        wasBackgroundedRef.current = true
 
         setRecordingWarning(
           'JackTrack was backgrounded or the screen was locked. iPhone may pause GPS while this happens.',
@@ -255,6 +281,11 @@ const GpsRecorder = forwardRef<
     routeRef.current = []
     distanceMilesRef.current = 0
     forceNextSegmentBreakRef.current = false
+    lastReliableFixAtRef.current = null
+    interruptedSecondsRef.current = 0
+    longestGapSecondsRef.current = 0
+    gapCountRef.current = 0
+    wasBackgroundedRef.current = false
 
     setRoute([])
     setElapsedSeconds(0)
@@ -302,6 +333,8 @@ const GpsRecorder = forwardRef<
             return
           }
 
+          const reliableFixReceivedAt = Date.now()
+
           const previousPoint =
             routeRef.current[
               routeRef.current.length - 1
@@ -312,25 +345,63 @@ const GpsRecorder = forwardRef<
 
           let distanceMetres = 0
 
+          const previousReliableFixAt =
+            lastReliableFixAtRef.current
+
+          const timeSinceReliableFixSeconds =
+            previousReliableFixAt === null
+              ? startTimeRef.current === null
+                ? 0
+                : Math.max(
+                    0,
+                    (reliableFixReceivedAt -
+                      startTimeRef.current) /
+                      1000,
+                  )
+              : Math.max(
+                  0,
+                  (reliableFixReceivedAt -
+                    previousReliableFixAt) /
+                    1000,
+                )
+
+          if (
+            timeSinceReliableFixSeconds >
+            ROUTE_GAP_SECONDS
+          ) {
+            shouldBreakSegment = Boolean(
+              previousPoint,
+            )
+
+            interruptedSecondsRef.current +=
+              timeSinceReliableFixSeconds
+            gapCountRef.current += 1
+            longestGapSecondsRef.current =
+              Math.max(
+                longestGapSecondsRef.current,
+                timeSinceReliableFixSeconds,
+              )
+
+            setRecordingWarning(
+              `GPS tracking was interrupted for about ${formatElapsedTime(
+                Math.round(
+                  timeSinceReliableFixSeconds,
+                ),
+              )}. JackTrack will keep the route sections separate rather than drawing an inaccurate straight line.`,
+            )
+          }
+
+          lastReliableFixAtRef.current =
+            reliableFixReceivedAt
+
           if (previousPoint) {
-            const timeDifferenceSeconds =
+            const routePointTimeDifferenceSeconds =
               Math.max(
                 0,
                 (position.timestamp -
                   previousPoint.timestamp) /
                   1000,
               )
-
-            if (
-              timeDifferenceSeconds >
-              ROUTE_GAP_SECONDS
-            ) {
-              shouldBreakSegment = true
-
-              setRecordingWarning(
-                'A gap in GPS recording was detected. JackTrack will show a break in the route rather than drawing an inaccurate straight line.',
-              )
-            }
 
             distanceMetres =
               calculateDistanceMetres(
@@ -349,11 +420,11 @@ const GpsRecorder = forwardRef<
 
             if (
               !shouldBreakSegment &&
-              timeDifferenceSeconds > 0
+              routePointTimeDifferenceSeconds > 0
             ) {
               const calculatedSpeed =
                 distanceMetres /
-                timeDifferenceSeconds
+                routePointTimeDifferenceSeconds
 
               if (
                 calculatedSpeed >
@@ -473,11 +544,90 @@ const GpsRecorder = forwardRef<
               ),
             )
 
+      let interruptedSeconds =
+        interruptedSecondsRef.current
+      let longestGapSeconds =
+        longestGapSecondsRef.current
+      let gapCount = gapCountRef.current
+
+      const now = Date.now()
+
+      if (routeRef.current.length === 0) {
+        interruptedSeconds = durationSeconds
+        longestGapSeconds = durationSeconds
+        gapCount = durationSeconds > 0 ? 1 : 0
+      } else if (
+        lastReliableFixAtRef.current !== null
+      ) {
+        const trailingGapSeconds = Math.max(
+          0,
+          (now -
+            lastReliableFixAtRef.current) /
+            1000,
+        )
+
+        if (
+          trailingGapSeconds >
+          ROUTE_GAP_SECONDS
+        ) {
+          interruptedSeconds +=
+            trailingGapSeconds
+          longestGapSeconds = Math.max(
+            longestGapSeconds,
+            trailingGapSeconds,
+          )
+          gapCount += 1
+        }
+      }
+
+      const clampedInterruptedSeconds =
+        Math.min(
+          durationSeconds,
+          Math.max(
+            0,
+            Math.round(interruptedSeconds),
+          ),
+        )
+
+      const coveragePercent =
+        durationSeconds <= 0
+          ? routeRef.current.length > 0
+            ? 100
+            : 0
+          : Math.max(
+              0,
+              Math.min(
+                100,
+                Math.round(
+                  ((durationSeconds -
+                    clampedInterruptedSeconds) /
+                    durationSeconds) *
+                    100,
+                ),
+              ),
+            )
+
+      const coverage: GpsCoverageSummary = {
+        isComplete:
+          routeRef.current.length > 0 &&
+          gapCount === 0,
+        interruptedSeconds:
+          clampedInterruptedSeconds,
+        longestGapSeconds: Math.round(
+          longestGapSeconds,
+        ),
+        gapCount,
+        coveragePercent,
+        wasBackgrounded:
+          wasBackgroundedRef.current,
+      }
+
       const result: GpsRecordingResult = {
         route: [...routeRef.current],
         durationSeconds,
         distanceMiles:
           distanceMilesRef.current,
+        coverage,
       }
 
       clearTracking()
@@ -498,6 +648,7 @@ const GpsRecorder = forwardRef<
         result.route,
         result.durationSeconds,
         result.distanceMiles,
+        result.coverage,
       )
 
       return result
@@ -511,6 +662,11 @@ const GpsRecorder = forwardRef<
     routeRef.current = []
     distanceMilesRef.current = 0
     forceNextSegmentBreakRef.current = false
+    lastReliableFixAtRef.current = null
+    interruptedSecondsRef.current = 0
+    longestGapSecondsRef.current = 0
+    gapCountRef.current = 0
+    wasBackgroundedRef.current = false
 
     setRecordingState('idle')
     setRoute([])

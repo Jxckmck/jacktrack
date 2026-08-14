@@ -1220,3 +1220,471 @@ textarea.progress-select {
     align-items: center;
   }
 }
+
+/* Progress dashboard */
+.progress-intro {
+  max-width: 620px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.progress-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  margin-top: 20px;
+}
+
+.progress-stat-grid > div {
+  padding: 15px 8px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: var(--white);
+  text-align: center;
+}
+
+.progress-stat-grid strong,
+.progress-stat-grid span {
+  display: block;
+}
+
+.progress-stat-grid strong {
+  margin-bottom: 5px;
+  color: var(--text);
+  font-size: 21px;
+  line-height: 1;
+}
+
+.progress-stat-grid span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.skills-stat-grid {
+  margin-bottom: 24px;
+}
+
+.confidence-coverage-card {
+  overflow: hidden;
+}
+
+.confidence-coverage-heading,
+.progress-card-heading-row,
+.history-section-heading,
+.lesson-history-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.confidence-coverage-heading h3,
+.progress-card-heading-row h3,
+.history-section-heading h2 {
+  margin-bottom: 0;
+}
+
+.confidence-coverage-heading > strong {
+  flex-shrink: 0;
+  color: var(--blue-dark);
+  font-size: 20px;
+}
+
+.confidence-coverage-track {
+  height: 10px;
+  overflow: hidden;
+  margin: 16px 0 13px;
+  border-radius: 999px;
+  background: #e9eef8;
+}
+
+.confidence-coverage-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--blue);
+  transition: width 0.5s ease;
+}
+
+.progress-focus-card > p:not(.section-label) {
+  margin-bottom: 4px;
+}
+
+.progress-focus-list,
+.practice-focus-list {
+  display: grid;
+  margin-top: 10px;
+}
+
+.progress-focus-list button,
+.practice-focus-list button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border: 0;
+  border-bottom: 1px solid #eef0f3;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.progress-focus-list button:last-child,
+.practice-focus-list button:last-child {
+  border-bottom: 0;
+}
+
+.progress-focus-rank {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--blue-light);
+  color: var(--blue-dark) !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+.progress-focus-copy,
+.practice-focus-list button > span:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.progress-focus-copy strong,
+.progress-focus-copy small,
+.practice-focus-list strong,
+.practice-focus-list small {
+  display: block;
+}
+
+.progress-focus-copy strong,
+.practice-focus-list strong {
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.progress-focus-meter-row,
+.confidence-skill-meta {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 7px;
+}
+
+.progress-focus-meter-row small,
+.practice-focus-list small,
+.confidence-skill-meta small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.confidence-mini-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.confidence-mini-meter span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e3e8ef;
+  transition:
+    transform 0.18s ease,
+    background 0.2s ease;
+}
+
+.confidence-mini-meter span.filled {
+  background: var(--blue);
+  transform: scale(1.04);
+}
+
+.confidence-mini-meter.not-rated span {
+  background: #e5e7eb;
+}
+
+.progress-practice-card {
+  border-color: #fed7aa;
+  background: #fffaf3;
+}
+
+.progress-count-pill {
+  min-width: 32px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #ffedd5;
+  color: #9a3412 !important;
+  text-align: center;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+.progress-count-pill.neutral {
+  background: #eef2f7;
+  color: #475467 !important;
+}
+
+.practice-focus-note {
+  margin-top: 5px;
+  color: #9a3412 !important;
+  line-height: 1.45;
+}
+
+.progress-empty-copy {
+  margin-top: 14px;
+  margin-bottom: 0 !important;
+}
+
+.unrated-skill-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.unrated-skill-chips button,
+.unrated-skill-chips > span {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.unrated-skill-chips button {
+  cursor: pointer;
+}
+
+.unrated-skill-chips button:active {
+  transform: scale(0.98);
+}
+
+.skills-overview-link {
+  border-color: rgba(37, 99, 235, 0.18);
+  background: linear-gradient(145deg, #ffffff, #f2f6ff);
+}
+
+.confidence-skill-meta {
+  flex-wrap: wrap;
+}
+
+.lesson-history-section {
+  margin-top: 34px;
+}
+
+.history-section-heading {
+  align-items: flex-end;
+  margin-bottom: 4px;
+}
+
+.history-section-heading > span {
+  margin-bottom: 14px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.lesson-history-card {
+  width: 100%;
+  display: block;
+  margin-top: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.lesson-history-card:active {
+  transform: scale(0.99);
+}
+
+.lesson-history-card-top {
+  align-items: center;
+}
+
+.lesson-history-card-top > div {
+  min-width: 0;
+}
+
+.lesson-history-card-top strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.3;
+}
+
+.lesson-type-pill {
+  display: inline-block;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--blue-light);
+  color: var(--blue-dark) !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lesson-history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.lesson-history-meta span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.lesson-history-confidence {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid #eef0f3;
+}
+
+.lesson-history-confidence > span {
+  color: var(--blue-dark);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.lesson-history-flag {
+  display: grid;
+  gap: 4px;
+  margin-top: 11px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff7ed;
+}
+
+.lesson-history-flag strong {
+  color: #9a3412;
+  font-size: 11px;
+}
+
+.lesson-history-flag span {
+  color: #7c2d12;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.lesson-history-extra-skills,
+.lesson-history-next {
+  display: block;
+  margin-top: 11px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.lesson-history-next {
+  color: var(--text);
+}
+
+.lesson-history-next strong {
+  color: var(--blue-dark);
+}
+
+.progress-empty-card {
+  margin-top: 12px;
+}
+
+@media (hover: hover) {
+  .lesson-history-card:hover {
+    border-color: rgba(37, 99, 235, 0.28);
+    box-shadow: 0 10px 26px rgba(21, 32, 51, 0.07);
+  }
+}
+
+@media (max-width: 390px) {
+  .progress-stat-grid {
+    gap: 6px;
+  }
+
+  .progress-stat-grid strong {
+    font-size: 18px;
+  }
+
+  .progress-stat-grid span {
+    font-size: 9px;
+  }
+
+  .progress-focus-meter-row,
+  .confidence-skill-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+}
+
+.gps-coverage-warning {
+  margin-top: 14px;
+  padding: 14px 15px;
+  border: 1px solid #fed7aa;
+  border-radius: 15px;
+  background: #fff7ed;
+}
+
+.gps-coverage-warning strong,
+.gps-coverage-warning span {
+  display: block;
+}
+
+.gps-coverage-warning strong {
+  margin-bottom: 6px;
+  color: #9a3412;
+  font-size: 14px;
+}
+
+.gps-coverage-warning p {
+  margin-bottom: 8px;
+  color: #7c2d12;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.gps-coverage-warning span {
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.gps-coverage-good {
+  margin-top: 12px;
+  margin-bottom: 0 !important;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f0fdf4;
+  color: #166534 !important;
+  font-size: 12px !important;
+  font-weight: 800;
+}
+
