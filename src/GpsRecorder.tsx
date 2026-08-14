@@ -134,7 +134,7 @@ const GpsRecorder = forwardRef<
   const [recordingState, setRecordingState] =
     useState<RecordingState>('idle')
 
-  const [route, setRoute] = useState<
+  const [, setRoute] = useState<
     RoutePoint[]
   >([])
 
@@ -149,9 +149,7 @@ const GpsRecorder = forwardRef<
   ] = useState(0)
 
   const [gpsMessage, setGpsMessage] =
-    useState(
-      'GPS will start automatically when you press Start lesson.',
-    )
+    useState('')
 
   const [
     recordingWarning,
@@ -640,7 +638,7 @@ const GpsRecorder = forwardRef<
 
       setGpsMessage(
         result.route.length > 0
-          ? 'Lesson finished. GPS route is ready to save with the lesson.'
+          ? ''
           : 'Lesson finished, but no reliable GPS position was received.',
       )
 
@@ -673,9 +671,7 @@ const GpsRecorder = forwardRef<
     setElapsedSeconds(0)
     setDistanceMiles(0)
     setRecordingWarning('')
-    setGpsMessage(
-      'GPS will start automatically when you press Start lesson.',
-    )
+    setGpsMessage('')
   }
 
   useImperativeHandle(
@@ -700,11 +696,11 @@ const GpsRecorder = forwardRef<
     <div className="lesson-card spaced-card gps-card">
       <div className="gps-heading">
         <div>
-          <p className="section-label">
-            Automatic
-          </p>
+          <h3>GPS recording</h3>
 
-          <h3>GPS tracking</h3>
+          <span className="gps-subtitle">
+            Route tracking
+          </span>
         </div>
 
         <span
@@ -717,14 +713,6 @@ const GpsRecorder = forwardRef<
           {statusLabel}
         </span>
       </div>
-
-      <p>
-        {recordingState === 'recording'
-          ? 'Lesson and GPS are running together. Keep JackTrack open and the screen unlocked for the most reliable route.'
-          : recordingState === 'finished'
-            ? 'GPS has stopped. Complete the lesson reflection and save when ready.'
-            : 'You do not need to start GPS separately. Press Start lesson below when safely parked and JackTrack will start both together.'}
-      </p>
 
       <div className="gps-stat-grid">
         <div>
@@ -744,21 +732,17 @@ const GpsRecorder = forwardRef<
 
           <span>miles</span>
         </div>
-
-        <div>
-          <strong>{route.length}</strong>
-
-          <span>GPS points</span>
-        </div>
       </div>
 
-      <p className="gps-message">
-        {gpsMessage}
-      </p>
+      {gpsMessage && (
+        <p className="gps-message">
+          {gpsMessage}
+        </p>
+      )}
 
       {recordingWarning && (
-        <div className="lesson-card skills-summary">
-          <h3>GPS recording warning</h3>
+        <div className="gps-inline-warning">
+          <strong>GPS recording warning</strong>
 
           <p>{recordingWarning}</p>
         </div>

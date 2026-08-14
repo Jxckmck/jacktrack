@@ -1,11 +1,13 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react'
 import type { ChangeEvent } from 'react'
 import './App.css'
+import './JackTrackTheme.css'
 import GpsRecorder from './GpsRecorder'
 import type {
   GpsCoverageSummary,
@@ -30,6 +32,10 @@ type Tab =
   | 'lesson'
   | 'progress'
   | 'more'
+
+type ThemeMode =
+  | 'light'
+  | 'dark'
 
 type LessonSessionState =
   | 'setup'
@@ -100,6 +106,33 @@ type AppProps = {
 }
 
 const STORAGE_KEY = 'jacktrack-data-v1'
+
+const THEME_STORAGE_KEY =
+  'jacktrack-theme-v1'
+
+const getInitialThemeMode = (): ThemeMode => {
+  try {
+    const savedTheme =
+      localStorage.getItem(
+        THEME_STORAGE_KEY,
+      )
+
+    if (
+      savedTheme === 'light' ||
+      savedTheme === 'dark'
+    ) {
+      return savedTheme
+    }
+  } catch {
+    // Fall back to the device preference below.
+  }
+
+  return window.matchMedia?.(
+    '(prefers-color-scheme: dark)',
+  ).matches
+    ? 'dark'
+    : 'light'
+}
 
 const confidenceLabels: Record<
   ConfidenceRating,
@@ -473,7 +506,6 @@ function ProgressRing({
           cx="50"
           cy="50"
           r={radius}
-          stroke="#2563eb"
           strokeDasharray={`${progressLength} ${
             circumference - progressLength
           }`}
@@ -615,6 +647,49 @@ function ConfidenceMiniMeter({
   )
 }
 
+
+function NavIcon({
+  tab,
+}: {
+  tab: Tab
+}) {
+  if (tab === 'home') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3.5 10.4 12 3.7l8.5 6.7v9.1a1 1 0 0 1-1 1h-5.2v-6h-4.6v6H4.5a1 1 0 0 1-1-1z" />
+      </svg>
+    )
+  }
+
+  if (tab === 'lesson') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 4.5h10.8a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2z" />
+        <path d="M17.8 7.3h1.1a1.6 1.6 0 0 1 1.6 1.6v8.6h-2.7" />
+        <path d="M8.2 8.2h6.4M8.2 11.5h6.4" />
+      </svg>
+    )
+  }
+
+  if (tab === 'progress') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4.2 18.8V12h3.2v6.8zM10.4 18.8V7.5h3.2v11.3zM16.6 18.8V4.2h3.2v14.6z" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="6" cy="6" r="1.7" />
+      <circle cx="18" cy="6" r="1.7" />
+      <circle cx="6" cy="18" r="1.7" />
+      <circle cx="18" cy="18" r="1.7" />
+    </svg>
+  )
+}
+
+
 function App({
   profile,
   onProfileChange,
@@ -623,6 +698,13 @@ function App({
 
   const [activeTab, setActiveTab] =
     useState<Tab>('home')
+
+  const [
+    themeMode,
+    setThemeMode,
+  ] = useState<ThemeMode>(
+    getInitialThemeMode,
+  )
 
   const [selectedSkill, setSelectedSkill] =
     useState<DrivingSkill | null>(null)
@@ -833,6 +915,38 @@ function App({
 
   const reviewReflectionRef =
     useRef<HTMLDivElement | null>(null)
+
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme =
+      themeMode
+
+    document.documentElement.style.colorScheme =
+      themeMode
+
+    const themeColour =
+      themeMode === 'dark'
+        ? '#252d2b'
+        : '#e8efed'
+
+    const themeMeta =
+      document.querySelector<HTMLMetaElement>(
+        'meta[name="theme-color"]',
+      )
+
+    themeMeta?.setAttribute(
+      'content',
+      themeColour,
+    )
+
+    try {
+      localStorage.setItem(
+        THEME_STORAGE_KEY,
+        themeMode,
+      )
+    } catch {
+      // The theme still applies for this session.
+    }
+  }, [themeMode])
 
   useEffect(() => {
     localStorage.setItem(
@@ -2253,20 +2367,15 @@ function App({
   }
 
   const renderHome = () => (
-    <>
-      <header className="header">
+    <section className="home-screen screen-shell">
+      <header className="native-header">
         <div>
-          <p className="welcome">
-            Good afternoon, Jack
-          </p>
-
           <h1>
-            {profile.name}’s learning
-            journey
+            {profile.name}’s journey
           </h1>
         </div>
 
-        <div className="avatar">
+        <div className="avatar native-avatar">
           <AvatarIcon
             avatar={profile.avatar}
             name={profile.name}
@@ -2275,17 +2384,21 @@ function App({
         </div>
       </header>
 
-      <section className="progress-card">
-        <div>
-          <span className="badge">
-            {profile.transmission} learner
+      <section className="journey-hero">
+        <div className="journey-hero-copy">
+          <span className="native-pill">
+            {profile.transmission}
           </span>
 
-          <h2>Building confidence</h2>
+          <h2>
+            {ratedSkillCount === 0
+              ? 'Ready to build confidence'
+              : 'Building confidence'}
+          </h2>
 
           <p>
             {ratedSkillCount === 0
-              ? 'Confidence ratings will build up after each recorded lesson.'
+              ? 'Confidence will build naturally as lessons are recorded.'
               : `${ratedSkillCount} of ${allSkills.length} skills rated${
                   averageConfidence !== null
                     ? ` · ${averageConfidence.toFixed(
@@ -2302,42 +2415,55 @@ function App({
       </section>
 
       <button
-        className="start-button"
+        className="native-primary-action"
+        type="button"
         onClick={openLessonHub}
       >
-        <span>
-          <strong>
-            Start a lesson
-          </strong>
+        <span className="native-action-icon">
+          +
+        </span>
 
+        <span>
+          <strong>Start a lesson</strong>
           <small>
-            Choose a guided focus or
-            record an unguided drive
+            Guided practice or a flexible drive
           </small>
         </span>
 
-        <span>›</span>
+        <span className="native-action-arrow">
+          ›
+        </span>
       </button>
 
-      <section className="section">
-        <p className="section-label">
-          Recommended next
-        </p>
+      <section className="native-section">
+        <div className="native-section-heading">
+          <div>
+            <p className="native-eyebrow">
+              Recommended next
+            </p>
 
-        <h2>{recommendedSkill.name}</h2>
+            <h2>
+              {recommendedSkill.name}
+            </h2>
+          </div>
+
+          <span className="native-pill subtle">
+            Guided
+          </span>
+        </div>
 
         <button
           type="button"
-          className="lesson-card lesson-summary-link"
+          className="native-row native-row-feature"
           onClick={() =>
             planPracticeSession(
               recommendedSkill,
             )
           }
         >
-          <span>
+          <span className="native-row-copy">
             <strong>
-              Guided practice session
+              Focused practice session
             </strong>
 
             <small>
@@ -2345,34 +2471,38 @@ function App({
             </small>
           </span>
 
-          <span className="skill-chevron">
+          <span className="native-row-arrow">
             ›
           </span>
         </button>
       </section>
 
       {lessons.length > 0 && (
-        <section className="section">
-          <p className="section-label">
-            Latest lesson
-          </p>
+        <section className="native-section">
+          <div className="native-section-heading">
+            <div>
+              <p className="native-eyebrow">
+                Latest lesson
+              </p>
 
-          <h2>
-            {formatLessonDate(
-              lessons[0].date,
-            )}
-          </h2>
+              <h2>
+                {formatLessonDate(
+                  lessons[0].date,
+                )}
+              </h2>
+            </div>
+          </div>
 
           <button
             type="button"
-            className="lesson-card lesson-summary-link"
+            className="native-row"
             onClick={() =>
               navigateToLessonSummary(
                 lessons[0].id,
               )
             }
           >
-            <span>
+            <span className="native-row-copy">
               <strong>
                 {lessons[0].duration}{' '}
                 minutes ·{' '}
@@ -2387,18 +2517,18 @@ function App({
                 skills practised
                 {(lessons[0].route
                   ?.length ?? 0) > 0
-                  ? ' · GPS route recorded'
+                  ? ' · Route recorded'
                   : ''}
               </small>
             </span>
 
-            <span className="skill-chevron">
+            <span className="native-row-arrow">
               ›
             </span>
           </button>
         </section>
       )}
-    </>
+    </section>
   )
 
   const renderSkillDetail = () => {
@@ -2489,8 +2619,8 @@ function App({
     }
 
     return (
-      <section>
-        <p className="section-label">
+      <section className="skills-screen screen-shell">
+        <p className="native-eyebrow">
           DVSA skills
         </p>
 
@@ -2595,22 +2725,21 @@ function App({
         skillGuidance[recommendedSkill.id]
 
       return (
-        <section>
-          <p className="section-label">
+        <section className="lesson-hub screen-shell">
+          <p className="native-eyebrow">
             Practice
           </p>
 
           <h1>Start a lesson</h1>
 
-          <p>
-            Choose what to focus on before
-            the drive. Guided lessons include
-            Instructor Mode throughout the
-            session.
+          <p className="lesson-hub-intro">
+            Choose how you want to practise.
+            Both guided options include a
+            teaching plan and Instructor Mode.
           </p>
 
           {lessonSaved && (
-            <div className="lesson-card skills-summary">
+            <div className="lesson-card skills-summary success-card">
               <h3>Lesson saved</h3>
 
               <p>
@@ -2620,10 +2749,16 @@ function App({
             </div>
           )}
 
-          <div className="lesson-card spaced-card">
-            <p className="section-label">
-              Recommended next lesson
-            </p>
+          <div className="lesson-card spaced-card lesson-choice-card lesson-choice-card--recommended">
+            <div className="lesson-choice-heading">
+              <span className="lesson-type-chip lesson-type-chip--recommended">
+                Recommended · Guided
+              </span>
+
+              <span className="lesson-choice-number">
+                1
+              </span>
+            </div>
 
             <h2>
               {recommendedSkill.id}.{' '}
@@ -2635,26 +2770,34 @@ function App({
                 `Continue building confidence with ${recommendedSkill.name.toLowerCase()}.`}
             </p>
 
-            <p>
-              <strong>Confidence:</strong>{' '}
-              {formatConfidence(
-                recommendedSkillState.confidence,
-              )}
-            </p>
+            <div className="recommendation-meta">
+              <div>
+                <span>Confidence</span>
+                <strong>
+                  {formatConfidence(
+                    recommendedSkillState.confidence,
+                  )}
+                </strong>
+              </div>
 
-            <p>
-              <strong>Why this lesson:</strong>{' '}
-              {recommendedReason}
-            </p>
+              <div>
+                <span>Why now</span>
+                <strong>
+                  {recommendedReason}
+                </strong>
+              </div>
 
-            <p>
-              <strong>Practice history:</strong>{' '}
-              {recommendedPracticeHistory}
-            </p>
+              <div>
+                <span>Practice history</span>
+                <strong>
+                  {recommendedPracticeHistory}
+                </strong>
+              </div>
+            </div>
 
             <button
               type="button"
-              className="start-button"
+              className="lesson-choice-button lesson-choice-button--recommended"
               onClick={() =>
                 planPracticeSession(
                   recommendedSkill,
@@ -2667,27 +2810,47 @@ function App({
                 </strong>
 
                 <small>
-                  Guided session · Instructor
-                  Mode included
+                  JackTrack chooses the focus ·
+                  Instructor Mode included
                 </small>
               </span>
 
-              <span>›</span>
+              <span className="lesson-choice-arrow">
+                ›
+              </span>
             </button>
           </div>
 
-          <div className="lesson-card spaced-card">
-            <h3>Choose a skill to focus on</h3>
+          <div className="lesson-method-heading">
+            <p className="native-eyebrow">
+              Other ways to practise
+            </p>
+            <h2>Choose your route</h2>
+          </div>
+
+          <div className="lesson-card spaced-card lesson-choice-card lesson-choice-card--guided">
+            <div className="lesson-choice-heading">
+              <span className="lesson-type-chip lesson-type-chip--guided">
+                Guided
+              </span>
+
+              <span className="lesson-choice-number">
+                2
+              </span>
+            </div>
+
+            <h3>Choose another skill</h3>
 
             <p>
-              Pick any syllabus skill and
-              JackTrack will build a guided
-              practice session around it.
+              You choose the syllabus skill.
+              JackTrack still builds the same
+              guided lesson plan and Instructor
+              Mode support around it.
             </p>
 
             <button
               type="button"
-              className="text-button full-text-button"
+              className="lesson-choice-button lesson-choice-button--guided"
               onClick={() =>
                 setIsChoosingLessonSkill(
                   (currentValue) =>
@@ -2695,92 +2858,180 @@ function App({
                 )
               }
             >
-              {isChoosingLessonSkill
-                ? 'Hide skill list'
-                : 'Choose a skill'}
+              <span>
+                <strong>
+                  {isChoosingLessonSkill
+                    ? 'Hide skill list'
+                    : 'Choose a skill'}
+                </strong>
+
+                <small>
+                  You choose the focus · Guided
+                  plan included
+                </small>
+              </span>
+
+              <span className="lesson-choice-arrow">
+                {isChoosingLessonSkill
+                  ? '⌃'
+                  : '›'}
+              </span>
             </button>
           </div>
 
-          {isChoosingLessonSkill &&
-            skillGroups.map((group) => (
-              <section
-                className="skill-group"
-                key={group.name}
-              >
+          {isChoosingLessonSkill && (
+            <div className="skill-picker-panel">
+              <div className="skill-picker-intro">
                 <p className="section-label">
-                  {group.name}
+                  Guided skill picker
                 </p>
 
-                {group.skills.map(
-                  (skill) => (
-                    <div
-                      className="lesson-card quick-skill-card"
-                      key={skill.id}
-                    >
-                      <button
-                        type="button"
-                        className="quick-skill-name"
-                        onClick={() =>
-                          planPracticeSession(
-                            skill,
-                          )
-                        }
-                      >
-                        <strong>
-                          {skill.id}.{' '}
-                          {skill.name}
-                        </strong>
+                <h2>What do you want to teach?</h2>
 
-                        <small>
-                          {formatConfidence(
-                            currentSkillState[
-                              skill.id
-                            ].confidence,
-                          )}
-                          {' · '}Start guided
-                          lesson
-                        </small>
-                      </button>
+                <p>
+                  Each skill shows a quick
+                  preview of what the lesson
+                  covers. Tap one to see the
+                  fuller lesson preview before
+                  you start.
+                </p>
+              </div>
 
-                      <span className="skill-chevron">
-                        ›
-                      </span>
-                    </div>
-                  ),
-                )}
-              </section>
-            ))}
+              {skillGroups.map((group) => (
+                <section
+                  className="skill-group"
+                  key={group.name}
+                >
+                  <p className="section-label skill-group-label">
+                    {group.name}
+                  </p>
 
-          <div className="lesson-card spaced-card">
-            <p className="section-label">
-              Flexible practice
-            </p>
+                  {group.skills.map(
+                    (skill) => {
+                      const guidance =
+                        skillGuidance[skill.id]
 
-            <h3>Record an unguided lesson</h3>
+                      const skillState =
+                        currentSkillState[
+                          skill.id
+                        ]
+
+                      return (
+                        <button
+                          type="button"
+                          className="lesson-card quick-skill-card"
+                          key={skill.id}
+                          onClick={() =>
+                            planPracticeSession(
+                              skill,
+                            )
+                          }
+                        >
+                          <span className="quick-skill-copy">
+                            <strong className="quick-skill-title">
+                              {skill.id}.{' '}
+                              {skill.name}
+                            </strong>
+
+                            {guidance && (
+                              <span className="quick-skill-preview">
+                                {guidance.covering
+                                  .slice(0, 2)
+                                  .map((item) => (
+                                    <span key={item}>
+                                      {item}
+                                    </span>
+                                  ))}
+                              </span>
+                            )}
+
+                            <span className="quick-skill-footer">
+                              <span className="skill-confidence-pill">
+                                {formatConfidence(
+                                  skillState.confidence,
+                                )}
+                              </span>
+
+                              {skillState.needsMorePractice && (
+                                <span className="skill-practice-pill">
+                                  Needs more practice
+                                </span>
+                              )}
+
+                              <span className="quick-skill-guided-label">
+                                Guided lesson
+                              </span>
+                            </span>
+                          </span>
+
+                          <span className="skill-chevron">
+                            ›
+                          </span>
+                        </button>
+                      )
+                    },
+                  )}
+                </section>
+              ))}
+            </div>
+          )}
+
+          <div className="lesson-card spaced-card lesson-choice-card lesson-choice-card--unguided">
+            <div className="lesson-choice-heading">
+              <span className="lesson-type-chip lesson-type-chip--unguided">
+                Unguided
+              </span>
+
+              <span className="lesson-choice-number">
+                3
+              </span>
+            </div>
+
+            <h3>Record a flexible lesson</h3>
 
             <p>
               Use this when you already know
-              what you want to practise or
-              you are going for an ad-hoc
-              drive.
+              what you want to practise. It
+              records the lesson, GPS route,
+              reflections and confidence, but
+              does not give you a guided
+              teaching plan or Instructor Mode.
             </p>
 
             <button
               type="button"
-              className="text-button full-text-button"
+              className="lesson-choice-button lesson-choice-button--unguided"
               onClick={startUnguidedLesson}
             >
-              Record unguided lesson
+              <span>
+                <strong>
+                  Start unguided lesson
+                </strong>
+
+                <small>
+                  GPS + lesson record · No
+                  guided teaching plan
+                </small>
+              </span>
+
+              <span className="lesson-choice-arrow">
+                ›
+              </span>
             </button>
           </div>
         </section>
       )
     }
 
+    const plannedGuidance =
+      plannedLessonSkill
+        ? skillGuidance[plannedLessonSkill.id]
+        : null
+
     return (
-      <section>
+      <section className="lesson-session screen-shell">
         <button
-          className="text-button"
+          className="text-button native-back-button"
           type="button"
           onClick={openLessonHub}
         >
@@ -2842,6 +3093,55 @@ function App({
           </div>
         )}
 
+        {lessonSessionState === 'setup' &&
+          plannedLessonSkill &&
+          plannedGuidance && (
+            <div className="lesson-card skills-summary lesson-preview-card">
+              <div className="lesson-preview-heading">
+                <span className="lesson-type-chip lesson-type-chip--guided">
+                  Guided lesson preview
+                </span>
+
+                <span className="lesson-preview-confidence">
+                  {formatConfidence(
+                    currentSkillState[
+                      plannedLessonSkill.id
+                    ].confidence,
+                  )}
+                </span>
+              </div>
+
+              <h3>What you’ll teach</h3>
+
+              <p>{plannedGuidance.summary}</p>
+
+              <div className="lesson-preview-points">
+                {plannedGuidance.covering
+                  .slice(0, 4)
+                  .map((item) => (
+                    <span key={item}>
+                      {item}
+                    </span>
+                  ))}
+              </div>
+
+              <div className="lesson-preview-note">
+                <strong>
+                  Instructor Mode takes it
+                  further
+                </strong>
+
+                <span>
+                  You’ll get the briefing,
+                  demonstration, prompts,
+                  practice ideas, common
+                  mistakes and ready-to-progress
+                  checks during the lesson.
+                </span>
+              </div>
+            </div>
+          )}
+
         {lessonSessionState === 'setup' && (
           <>
             <button
@@ -2871,9 +3171,9 @@ function App({
 
         {plannedLessonSkill && (
           <>
-            <div className="lesson-card skills-summary">
+            <div className="lesson-card skills-summary instructor-mode-intro">
               <p className="section-label">
-                Main lesson focus
+                Instructor Mode
               </p>
 
               <h3>
@@ -2882,10 +3182,10 @@ function App({
               </h3>
 
               <p>
-                Instructor Mode below guides
-                the practice session. Other
-                skills can still be added to
-                the record afterwards.
+                Follow the teaching stages
+                below as needed. Other skills
+                can still be added to the
+                lesson record afterwards.
               </p>
             </div>
 
@@ -4005,8 +4305,8 @@ function App({
     }
 
     return (
-      <section>
-        <p className="section-label">
+      <section className="progress-screen screen-shell">
+        <p className="native-eyebrow">
           Learning overview
         </p>
 
@@ -4650,14 +4950,14 @@ function App({
   )
 
   const renderMore = () => (
-    <section>
-      <p className="section-label">
+    <section className="more-screen screen-shell">
+      <p className="native-eyebrow">
         JackTrack
       </p>
 
       <h1>More</h1>
 
-      <div className="lesson-card">
+      <div className="lesson-card more-profile-card">
         <h3>Learner</h3>
 
         <p>
@@ -4699,7 +4999,94 @@ function App({
           </p>
         )}
 
-      <div className="lesson-card spaced-card">
+      <div className="lesson-card spaced-card appearance-card more-flat-section">
+        <p className="section-label">
+          Display
+        </p>
+
+        <div className="appearance-heading">
+          <div>
+            <h3>Appearance</h3>
+
+            <p>
+              Choose a brighter daytime
+              theme or a calmer night theme.
+              Your choice is saved on this
+              device.
+            </p>
+          </div>
+
+          <span className="appearance-status">
+            {themeMode === 'light'
+              ? 'Day'
+              : 'Night'}
+          </span>
+        </div>
+
+        <div
+          className="theme-switcher"
+          role="group"
+          aria-label="Choose JackTrack appearance"
+        >
+          <button
+            className={
+              themeMode === 'light'
+                ? 'theme-option active'
+                : 'theme-option'
+            }
+            type="button"
+            aria-pressed={
+              themeMode === 'light'
+            }
+            onClick={() =>
+              setThemeMode('light')
+            }
+          >
+            <span
+              className="theme-option-preview theme-option-preview--light"
+              aria-hidden="true"
+            >
+              <span />
+              <span />
+            </span>
+
+            <span className="theme-option-copy">
+              <strong>Light</strong>
+              <small>Best for daytime</small>
+            </span>
+          </button>
+
+          <button
+            className={
+              themeMode === 'dark'
+                ? 'theme-option active'
+                : 'theme-option'
+            }
+            type="button"
+            aria-pressed={
+              themeMode === 'dark'
+            }
+            onClick={() =>
+              setThemeMode('dark')
+            }
+          >
+            <span
+              className="theme-option-preview theme-option-preview--dark"
+              aria-hidden="true"
+            >
+              <span />
+              <span />
+            </span>
+
+            <span className="theme-option-copy">
+              <strong>Dark</strong>
+              <small>Best for evening</small>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div className="lesson-card spaced-card more-flat-section offline-card">
         <h3>Offline saving</h3>
 
         <p>
@@ -4711,48 +5098,69 @@ function App({
         </p>
       </div>
 
-      <div className="lesson-card spaced-card">
+      <div className="lesson-card spaced-card backup-card more-flat-section">
+        <p className="section-label">
+          Your data
+        </p>
+
         <h3>Backup and restore</h3>
 
-        <button
-          className="start-button"
-          type="button"
-          onClick={exportBackup}
-        >
-          <span>
-            <strong>
-              Download backup
-            </strong>
+        <p>
+          Keep a copy of the learner profile,
+          lesson history, confidence ratings
+          and saved routes.
+        </p>
 
-            <small>
-              Save all learner data and
-              profile details
-            </small>
-          </span>
+        <div className="settings-action-stack">
+          <button
+            className="settings-action"
+            type="button"
+            onClick={exportBackup}
+          >
+            <span className="settings-action-icon">
+              ↓
+            </span>
 
-          <span>↓</span>
-        </button>
+            <span className="settings-action-copy">
+              <strong>Save backup</strong>
 
-        <label className="start-button restore-label">
-          <span>
-            <strong>
-              Restore backup
-            </strong>
+              <small>
+                Download all JackTrack learner
+                data to a backup file
+              </small>
+            </span>
 
-            <small>
-              Choose a JackTrack backup
-            </small>
-          </span>
+            <span className="settings-action-arrow">
+              ›
+            </span>
+          </button>
 
-          <span>↑</span>
+          <label className="settings-action settings-action-label">
+            <span className="settings-action-icon settings-action-icon--restore">
+              ↑
+            </span>
 
-          <input
-            type="file"
-            accept=".json,application/json"
-            onChange={restoreBackup}
-            hidden
-          />
-        </label>
+            <span className="settings-action-copy">
+              <strong>Restore backup</strong>
+
+              <small>
+                Choose a JackTrack backup file
+                to restore on this device
+              </small>
+            </span>
+
+            <span className="settings-action-arrow">
+              ›
+            </span>
+
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={restoreBackup}
+              hidden
+            />
+          </label>
+        </div>
 
         {backupMessage && (
           <p className="setting-message">
@@ -4850,7 +5258,12 @@ function App({
 
   return (
     <main className="app">
-      {renderContent()}
+      <div
+        className="screen-transition"
+        key={`${activeTab}-${lessonSetupOpen ? 'session' : 'hub'}-${progressView}-${selectedLessonId ?? 'none'}`}
+      >
+        {renderContent()}
+      </div>
 
       {practiceNoteSkillId !== null && (
         <div
@@ -4922,7 +5335,10 @@ function App({
         </div>
       )}
 
-      <nav className="bottom-nav">
+      <nav
+        className="bottom-nav"
+        aria-label="Primary navigation"
+      >
         {(
           [
             ['home', 'Home'],
@@ -4938,11 +5354,22 @@ function App({
                 ? 'active'
                 : ''
             }
+            aria-current={
+              activeTab === tab
+                ? 'page'
+                : undefined
+            }
             onClick={() =>
               changeTab(tab)
             }
           >
-            {label}
+            <span className="nav-icon">
+              <NavIcon tab={tab} />
+            </span>
+
+            <span className="nav-label">
+              {label}
+            </span>
           </button>
         ))}
       </nav>

@@ -50,10 +50,23 @@ const buildRouteSegments = (
           )
         : 0
 
+    /*
+     * Newer recordings explicitly save segmentBreak as true or
+     * false. Trust that value so a long stationary period does
+     * not look like lost GPS just because no movement points were
+     * stored during it.
+     *
+     * Older saved routes did not include segmentBreak, so keep the
+     * timestamp-gap fallback for backwards compatibility.
+     */
+    const hasExplicitSegmentBreak =
+      typeof point.segmentBreak === 'boolean'
+
     const shouldStartNewSegment =
       index > 0 &&
-      (point.segmentBreak === true ||
-        timeGapSeconds >
+      (hasExplicitSegmentBreak
+        ? point.segmentBreak === true
+        : timeGapSeconds >
           ROUTE_GAP_SECONDS)
 
     if (
