@@ -10,35 +10,43 @@ import {
 } from './learnerProfile'
 import type { LearnerProfile } from './learnerProfile'
 
+
 function JackTrackRoot() {
   const [profile, setProfile] =
     useState<LearnerProfile | null>(() => {
       const savedProfile = loadLearnerProfile()
 
+
       if (savedProfile) {
         return savedProfile
       }
 
+
       /*
-       * Older JackTrack installations were originally made
-       * specifically for Emily. Existing lesson or progress data
-       * is therefore migrated to an Emily profile automatically.
+       * Older JackTrack installations may contain learner data
+       * created before learner profiles were introduced.
+       * Existing data is migrated to a generic profile so it
+       * remains available and the profile can be edited later.
        */
       if (hasExistingLearnerData()) {
         const migratedProfile: LearnerProfile = {
-          name: 'Emily',
+          name: 'Learner',
           transmission: 'Automatic',
           avatar: 'initial',
           createdAt: Date.now(),
         }
 
+
         saveLearnerProfile(migratedProfile)
+
 
         return migratedProfile
       }
 
+
       return null
     })
+
 
   const completeSetup = (
     newProfile: LearnerProfile,
@@ -47,6 +55,7 @@ function JackTrackRoot() {
     setProfile(newProfile)
   }
 
+
   const updateProfile = (
     updatedProfile: LearnerProfile,
   ) => {
@@ -54,11 +63,13 @@ function JackTrackRoot() {
     setProfile(updatedProfile)
   }
 
+
   if (!profile) {
     return (
       <LearnerSetup onComplete={completeSetup} />
     )
   }
+
 
   return (
     <App
@@ -67,6 +78,7 @@ function JackTrackRoot() {
     />
   )
 }
+
 
 createRoot(
   document.getElementById('root')!,

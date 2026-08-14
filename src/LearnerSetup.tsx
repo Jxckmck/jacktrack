@@ -8,9 +8,11 @@ import type {
   TransmissionType,
 } from './learnerProfile'
 
+
 type LearnerSetupProps = {
   onComplete: (profile: LearnerProfile) => void
 }
+
 
 function LearnerSetup({
   onComplete,
@@ -22,7 +24,9 @@ function LearnerSetup({
     useState<AvatarChoice>('initial')
   const [errorMessage, setErrorMessage] = useState('')
 
+
   const cleanedName = name.trim()
+
 
   const finishSetup = () => {
     if (!cleanedName) {
@@ -32,6 +36,7 @@ function LearnerSetup({
       return
     }
 
+
     onComplete({
       name: cleanedName,
       transmission,
@@ -40,26 +45,32 @@ function LearnerSetup({
     })
   }
 
+
   return (
     <main className="setup-screen">
       <section className="setup-panel">
         <div className="setup-logo">JT</div>
 
+
         <p className="section-label">
           Welcome to JackTrack
         </p>
 
+
         <h1>Set up the learner</h1>
+
 
         <p className="setup-introduction">
           Create a learner profile. These details stay on this
           device and can be changed later.
         </p>
 
+
         <div className="setup-field">
           <label htmlFor="learner-name">
             Learner’s first name
           </label>
+
 
           <input
             id="learner-name"
@@ -68,7 +79,6 @@ function LearnerSetup({
             value={name}
             maxLength={40}
             autoComplete="given-name"
-            placeholder="For example, Emily"
             onChange={(event) => {
               setName(event.target.value)
               setErrorMessage('')
@@ -76,10 +86,12 @@ function LearnerSetup({
           />
         </div>
 
+
         <fieldset className="setup-field setup-options">
           <legend>
             Which car are they learning in?
           </legend>
+
 
           <label
             className={
@@ -98,14 +110,17 @@ function LearnerSetup({
               }
             />
 
+
             <span>
               <strong>Automatic</strong>
+
 
               <small>
                 No clutch pedal or manual gear changes
               </small>
             </span>
           </label>
+
 
           <label
             className={
@@ -124,8 +139,10 @@ function LearnerSetup({
               }
             />
 
+
             <span>
               <strong>Manual</strong>
+
 
               <small>
                 Includes clutch control and gear changes
@@ -134,6 +151,7 @@ function LearnerSetup({
           </label>
         </fieldset>
 
+
         <fieldset className="setup-field avatar-options">
           <legend>
             Choose an avatar{' '}
@@ -141,6 +159,7 @@ function LearnerSetup({
               Optional
             </span>
           </legend>
+
 
           <div className="avatar-choice-grid">
             {avatarChoices.map((choice) => (
@@ -162,6 +181,7 @@ function LearnerSetup({
                   }
                 />
 
+
                 <span className="avatar-choice-symbol">
                   <AvatarIcon
                     avatar={choice.value}
@@ -169,6 +189,7 @@ function LearnerSetup({
                     className="avatar-svg"
                   />
                 </span>
+
 
                 <span className="avatar-choice-label">
                   {choice.label}
@@ -178,11 +199,13 @@ function LearnerSetup({
           </div>
         </fieldset>
 
+
         {errorMessage && (
           <p className="setup-error" role="alert">
             {errorMessage}
           </p>
         )}
+
 
         <button
           className="start-button"
@@ -194,8 +217,10 @@ function LearnerSetup({
             <small>Create the learner profile</small>
           </span>
 
+
           <span>›</span>
         </button>
+
 
         <p className="setup-privacy">
           Progress, lessons and GPS routes are stored locally
@@ -205,5 +230,6 @@ function LearnerSetup({
     </main>
   )
 }
+
 
 export default LearnerSetup
