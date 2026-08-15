@@ -1,0 +1,342 @@
+/* =========================================================
+   JackTrack guided coach-mark tour
+   Shows the real app underneath and highlights live controls.
+   ========================================================= */
+
+.coachmark-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 7000;
+  overflow: hidden;
+  pointer-events: auto;
+  touch-action: none;
+  font-family: inherit;
+}
+
+.coachmark-highlight {
+  position: fixed;
+  z-index: 7001;
+  pointer-events: none;
+  border: 2px solid var(--jt-accent);
+  border-radius: 22px;
+  background: transparent;
+  box-shadow:
+    0 0 0 9999px rgba(12, 20, 18, 0.66),
+    0 0 0 5px
+      color-mix(
+        in srgb,
+        var(--jt-accent) 17%,
+        transparent
+      ),
+    0 12px 34px rgba(0, 0, 0, 0.22);
+  transition:
+    top 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    left 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.coachmark-highlight::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+  box-shadow:
+    0 0 24px
+      color-mix(
+        in srgb,
+        var(--jt-accent) 34%,
+        transparent
+      );
+}
+
+.coachmark-skip {
+  position: fixed;
+  z-index: 7005;
+  top: calc(env(safe-area-inset-top) + 13px);
+  right: 15px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--jt-border) 82%,
+      transparent
+    );
+  border-radius: 999px;
+  background:
+    color-mix(
+      in srgb,
+      var(--jt-surface) 94%,
+      transparent
+    );
+  color: var(--jt-text);
+  box-shadow: var(--jt-shadow);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 720;
+  cursor: pointer;
+}
+
+.coachmark-callout {
+  position: fixed;
+  z-index: 7004;
+  padding: 17px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--jt-border) 82%,
+      transparent
+    );
+  border-radius: 23px;
+  background:
+    color-mix(
+      in srgb,
+      var(--jt-surface) 96%,
+      transparent
+    );
+  color: var(--jt-text);
+  box-shadow:
+    0 20px 54px rgba(13, 30, 25, 0.22);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  animation:
+    coachmarkCalloutIn
+    230ms
+    cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-theme='dark'] .coachmark-callout,
+html[data-theme='dark'] .coachmark-skip {
+  background:
+    color-mix(
+      in srgb,
+      var(--jt-surface-raised) 96%,
+      transparent
+    );
+}
+
+.coachmark-arrow {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: inherit;
+  transform: rotate(45deg);
+}
+
+.coachmark-callout--below .coachmark-arrow {
+  top: -9px;
+  border-top: 1px solid var(--jt-border);
+  border-left: 1px solid var(--jt-border);
+}
+
+.coachmark-callout--above .coachmark-arrow {
+  bottom: -9px;
+  border-right: 1px solid var(--jt-border);
+  border-bottom: 1px solid var(--jt-border);
+}
+
+.coachmark-heading-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.coachmark-eyebrow {
+  margin: 0 0 5px !important;
+  color: var(--jt-accent-strong) !important;
+  font-size: 0.72rem !important;
+  font-weight: 820 !important;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+}
+
+html[data-theme='dark'] .coachmark-eyebrow {
+  color: var(--jt-accent-text) !important;
+}
+
+.coachmark-callout h2 {
+  margin: 0 !important;
+  color: var(--jt-text) !important;
+  font-size: 1.25rem !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.028em !important;
+}
+
+.coachmark-step-label {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  min-width: 43px;
+  min-height: 30px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--jt-accent-soft);
+  color: var(--jt-accent-text);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.coachmark-description {
+  position: relative;
+  z-index: 1;
+  margin: 11px 0 0 !important;
+  color: var(--jt-muted) !important;
+  font-size: 0.92rem !important;
+  line-height: 1.43 !important;
+}
+
+html[data-theme='dark'] .coachmark-description {
+  color: #bcc9c5 !important;
+}
+
+.coachmark-actions {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.coachmark-back,
+.coachmark-next {
+  min-height: 45px;
+  border-radius: 15px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.coachmark-back {
+  padding: 0 15px;
+  border: 1px solid var(--jt-border);
+  background: var(--jt-surface-muted);
+  color: var(--jt-text);
+}
+
+.coachmark-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0 16px;
+  border: 0;
+  background: var(--jt-accent);
+  color: #f8fbfa;
+}
+
+html[data-theme='dark'] .coachmark-next {
+  color: #15201d;
+}
+
+.coachmark-next span {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.coachmark-swipe-hint {
+  position: relative;
+  z-index: 1;
+  margin: 10px 0 -2px !important;
+  color: var(--jt-muted) !important;
+  font-size: 0.72rem !important;
+  text-align: center;
+}
+
+.coachmark-loading {
+  position: fixed;
+  z-index: 7004;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translate(-50%, -50%);
+  padding: 14px 18px;
+  border: 1px solid var(--jt-border);
+  border-radius: 18px;
+  background: var(--jt-surface);
+  color: var(--jt-muted);
+  box-shadow:
+    0 0 0 9999px rgba(12, 20, 18, 0.66),
+    var(--jt-shadow);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.coachmark-loading-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--jt-accent);
+  animation: coachmarkPulse 950ms ease-in-out infinite;
+}
+
+.coachmark-back:active,
+.coachmark-next:active,
+.coachmark-skip:active {
+  transform: scale(0.975);
+}
+
+@keyframes coachmarkCalloutIn {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes coachmarkPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.88);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@media (max-width: 520px) {
+  .coachmark-callout {
+    padding: 16px;
+    border-radius: 21px;
+  }
+
+  .coachmark-callout h2 {
+    font-size: 1.18rem !important;
+  }
+
+  .coachmark-description {
+    font-size: 0.89rem !important;
+  }
+
+  .coachmark-skip {
+    top: calc(env(safe-area-inset-top) + 9px);
+    right: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coachmark-highlight,
+  .coachmark-callout,
+  .coachmark-loading-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+}

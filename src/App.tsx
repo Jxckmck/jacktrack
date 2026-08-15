@@ -19,6 +19,7 @@ import type { ReflectionMarker } from './RouteMap'
 import AvatarIcon from './AvatarIcon'
 import SkillGuidancePanel from './SkillGuidancePanel'
 import StructuredLessonPlan from './StructuredLessonPlan'
+import AppTour, { ContextCoachmark } from './AppTour'
 import { skillGuidance } from './skillGuidance'
 import { avatarChoices } from './learnerProfile'
 import type {
@@ -109,6 +110,51 @@ const STORAGE_KEY = 'jacktrack-data-v1'
 
 const THEME_STORAGE_KEY =
   'jacktrack-theme-v1'
+
+const APP_TOUR_STORAGE_KEY =
+  'jacktrack-app-tour-v2'
+
+const GPS_FIRST_START_TIP_STORAGE_KEY =
+  'jacktrack-gps-first-start-tip-v1'
+
+const ROUTE_DISCOVERY_TIP_STORAGE_KEY =
+  'jacktrack-route-discovery-tip-v1'
+
+const getInitialAppTourOpen = () => {
+  try {
+    return (
+      localStorage.getItem(
+        APP_TOUR_STORAGE_KEY,
+      ) !== 'complete'
+    )
+  } catch {
+    return true
+  }
+}
+
+const hasSeenGpsFirstStartTip = () => {
+  try {
+    return (
+      localStorage.getItem(
+        GPS_FIRST_START_TIP_STORAGE_KEY,
+      ) === 'complete'
+    )
+  } catch {
+    return false
+  }
+}
+
+const hasSeenRouteDiscoveryTip = () => {
+  try {
+    return (
+      localStorage.getItem(
+        ROUTE_DISCOVERY_TIP_STORAGE_KEY,
+      ) === 'complete'
+    )
+  } catch {
+    return false
+  }
+}
 
 const getInitialThemeMode = (): ThemeMode => {
   try {
@@ -705,6 +751,26 @@ function App({
   ] = useState<ThemeMode>(
     getInitialThemeMode,
   )
+
+  const [
+    isAppTourOpen,
+    setIsAppTourOpen,
+  ] = useState(
+    getInitialAppTourOpen,
+  )
+
+  const [
+    isGpsFirstStartTipOpen,
+    setIsGpsFirstStartTipOpen,
+  ] = useState(false)
+
+  const [
+    isRouteDiscoveryTipOpen,
+    setIsRouteDiscoveryTipOpen,
+  ] = useState(false)
+
+  const appTourReturnTabRef =
+    useRef<Tab>('home')
 
   const [selectedSkill, setSelectedSkill] =
     useState<DrivingSkill | null>(null)
@@ -1705,20 +1771,7 @@ function App({
     })
   }
 
-  const startLesson = () => {
-    if (lessonSessionState !== 'setup') {
-      return
-    }
-
-    if (
-      gpsRecorderRef.current?.isRecording()
-    ) {
-      window.alert(
-        'A lesson is already being recorded. Finish or discard it before starting another.',
-      )
-      return
-    }
-
+  const beginLessonRecording = () => {
     const started =
       gpsRecorderRef.current?.startRecording() ??
       false
@@ -1741,6 +1794,42 @@ function App({
       top: 0,
       behavior: 'smooth',
     })
+  }
+
+  const startLesson = () => {
+    if (lessonSessionState !== 'setup') {
+      return
+    }
+
+    if (
+      gpsRecorderRef.current?.isRecording()
+    ) {
+      window.alert(
+        'A lesson is already being recorded. Finish or discard it before starting another.',
+      )
+      return
+    }
+
+    if (!hasSeenGpsFirstStartTip()) {
+      setIsGpsFirstStartTipOpen(true)
+      return
+    }
+
+    beginLessonRecording()
+  }
+
+  const confirmGpsFirstStartTip = () => {
+    try {
+      localStorage.setItem(
+        GPS_FIRST_START_TIP_STORAGE_KEY,
+        'complete',
+      )
+    } catch {
+      // The tip can still close for this session.
+    }
+
+    setIsGpsFirstStartTipOpen(false)
+    beginLessonRecording()
   }
 
   const finishLesson = () => {
@@ -2366,6 +2455,100 @@ function App({
     })
   }
 
+  const navigateForAppTour = useCallback(
+    (tab: Tab) => {
+      setActiveTab(tab)
+      setSelectedSkill(null)
+      setSelectedLessonId(null)
+      setJustSavedLessonId(null)
+      setIsAddingMarker(false)
+
+      if (tab === 'lesson') {
+        setLessonSetupOpen(false)
+        setIsChoosingLessonSkill(false)
+        setPlannedLessonSkill(null)
+        setLessonSessionState('setup')
+      }
+
+      if (tab === 'progress') {
+        setProgressView('overview')
+      }
+
+      window.scrollTo({
+        top: 0,
+        behavior: 'auto',
+      })
+    },
+    [],
+  )
+
+  const closeAppTour = useCallback(() => {
+    try {
+      localStorage.setItem(
+        APP_TOUR_STORAGE_KEY,
+        'complete',
+      )
+    } catch {
+      // The tour can still close for this session.
+    }
+
+    setIsAppTourOpen(false)
+    navigateForAppTour(
+      appTourReturnTabRef.current,
+    )
+  }, [navigateForAppTour])
+
+  const openAppTour = useCallback(() => {
+    appTourReturnTabRef.current =
+      activeTab
+
+    setIsRouteDiscoveryTipOpen(false)
+    setIsAppTourOpen(true)
+  }, [activeTab])
+
+  useEffect(() => {
+    if (
+      isAppTourOpen ||
+      selectedLessonId === null ||
+      hasSeenRouteDiscoveryTip()
+    ) {
+      return
+    }
+
+    const selectedLesson =
+      lessons.find(
+        (lesson) =>
+          lesson.id === selectedLessonId,
+      )
+
+    if (
+      (selectedLesson?.route?.length ??
+        0) === 0
+    ) {
+      return
+    }
+
+    setIsRouteDiscoveryTipOpen(true)
+  }, [
+    isAppTourOpen,
+    lessons,
+    selectedLessonId,
+  ])
+
+  const closeRouteDiscoveryTip =
+    useCallback(() => {
+      try {
+        localStorage.setItem(
+          ROUTE_DISCOVERY_TIP_STORAGE_KEY,
+          'complete',
+        )
+      } catch {
+        // The tip can still close for this session.
+      }
+
+      setIsRouteDiscoveryTipOpen(false)
+    }, [])
+
   const renderHome = () => (
     <section className="home-screen screen-shell">
       <header className="native-header">
@@ -2417,6 +2600,7 @@ function App({
       <button
         className="native-primary-action"
         type="button"
+        data-tour="home-start-lesson"
         onClick={openLessonHub}
       >
         <span className="native-action-icon">
@@ -2455,6 +2639,7 @@ function App({
         <button
           type="button"
           className="native-row native-row-feature"
+          data-tour="home-recommended"
           onClick={() =>
             planPracticeSession(
               recommendedSkill,
@@ -2749,7 +2934,10 @@ function App({
             </div>
           )}
 
-          <div className="lesson-card spaced-card lesson-choice-card lesson-choice-card--recommended">
+          <div
+            className="lesson-card spaced-card lesson-choice-card lesson-choice-card--recommended"
+            data-tour="lesson-recommended"
+          >
             <div className="lesson-choice-heading">
               <span className="lesson-type-chip lesson-type-chip--recommended">
                 Recommended · Guided
@@ -2828,7 +3016,10 @@ function App({
             <h2>Choose your route</h2>
           </div>
 
-          <div className="lesson-card spaced-card lesson-choice-card lesson-choice-card--guided">
+          <div
+            className="lesson-card spaced-card lesson-choice-card lesson-choice-card--guided"
+            data-tour="lesson-guided"
+          >
             <div className="lesson-choice-heading">
               <span className="lesson-type-chip lesson-type-chip--guided">
                 Guided
@@ -2976,7 +3167,10 @@ function App({
             </div>
           )}
 
-          <div className="lesson-card spaced-card lesson-choice-card lesson-choice-card--unguided">
+          <div
+            className="lesson-card spaced-card lesson-choice-card lesson-choice-card--unguided"
+            data-tour="lesson-unguided"
+          >
             <div className="lesson-choice-heading">
               <span className="lesson-type-chip lesson-type-chip--unguided">
                 Unguided
@@ -3976,7 +4170,10 @@ function App({
 
         {(lesson.route?.length ??
           0) > 0 && (
-          <div className="lesson-card spaced-card map-card">
+          <div
+            className="lesson-card spaced-card map-card"
+            data-tour="saved-route-map"
+          >
             <div className="map-card-heading">
               <div>
                 <h3>Lesson route</h3>
@@ -4319,7 +4516,10 @@ function App({
           been rated yet.
         </p>
 
-        <div className="progress-stat-grid">
+        <div
+          className="progress-stat-grid"
+          data-tour="progress-overview"
+        >
           <div>
             <strong>{ratedSkillCount}</strong>
             <span>rated skills</span>
@@ -4999,7 +5199,10 @@ function App({
           </p>
         )}
 
-      <div className="lesson-card spaced-card appearance-card more-flat-section">
+      <div
+        className="lesson-card spaced-card appearance-card more-flat-section"
+        data-tour="more-appearance"
+      >
         <p className="section-label">
           Display
         </p>
@@ -5086,6 +5289,45 @@ function App({
         </div>
       </div>
 
+      <div
+        className="lesson-card spaced-card more-flat-section app-tour-settings-card"
+        data-tour="more-app-tour"
+      >
+        <p className="section-label">
+          Help
+        </p>
+
+        <h3>App tour</h3>
+
+        <p>
+          Replay the JackTrack walkthrough for
+          guided lessons, GPS, reflections,
+          Street View, Progress and backups.
+        </p>
+
+        <button
+          className="settings-action"
+          type="button"
+          onClick={openAppTour}
+        >
+          <span className="settings-action-icon">
+            ?
+          </span>
+
+          <span className="settings-action-copy">
+            <strong>How to use JackTrack</strong>
+
+            <small>
+              Open the feature tour again
+            </small>
+          </span>
+
+          <span className="settings-action-arrow">
+            ›
+          </span>
+        </button>
+      </div>
+
       <div className="lesson-card spaced-card more-flat-section offline-card">
         <h3>Offline saving</h3>
 
@@ -5098,7 +5340,10 @@ function App({
         </p>
       </div>
 
-      <div className="lesson-card spaced-card backup-card more-flat-section">
+      <div
+        className="lesson-card spaced-card backup-card more-flat-section"
+        data-tour="more-backup"
+      >
         <p className="section-label">
           Your data
         </p>
@@ -5335,6 +5580,89 @@ function App({
         </div>
       )}
 
+      {isGpsFirstStartTipOpen && (
+        <div
+          className="gps-first-tip-backdrop"
+          role="presentation"
+        >
+          <section
+            className="gps-first-tip-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="gps-first-tip-title"
+          >
+            <div
+              className="gps-first-tip-icon"
+              aria-hidden="true"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <path d="M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+                <path d="M12 8v4l2.5 2" />
+                <path d="M8.5 3h7" />
+              </svg>
+            </div>
+
+            <p className="section-label">
+              Before your first lesson
+            </p>
+
+            <h2 id="gps-first-tip-title">
+              Keep the GPS route reliable
+            </h2>
+
+            <p>
+              Keep JackTrack open and your phone
+              unlocked during the drive for the
+              most reliable GPS route.
+            </p>
+
+            <p className="gps-first-tip-secondary">
+              JackTrack will warn you if GPS
+              coverage is interrupted.
+            </p>
+
+            <button
+              type="button"
+              className="start-button gps-first-tip-button"
+              onClick={confirmGpsFirstStartTip}
+            >
+              <span>
+                <strong>
+                  Got it — start lesson
+                </strong>
+                <small>
+                  You’ll only see this once
+                </small>
+              </span>
+
+              <span>›</span>
+            </button>
+          </section>
+        </div>
+      )}
+
+      {isAppTourOpen && (
+        <AppTour
+          onClose={closeAppTour}
+          onNavigate={navigateForAppTour}
+        />
+      )}
+
+      {isRouteDiscoveryTipOpen &&
+        !isAppTourOpen && (
+          <ContextCoachmark
+            targetSelector='[data-tour="saved-route-map"]'
+            eyebrow="Saved route"
+            title="The map is interactive"
+            description="Add a reflection marker, then tap the exact point on the route where something happened. Saved reflections include an Open Street View link so you can revisit the location visually."
+            buttonLabel="Got it"
+            onClose={closeRouteDiscoveryTip}
+          />
+        )}
+
       <nav
         className="bottom-nav"
         aria-label="Primary navigation"
@@ -5349,6 +5677,7 @@ function App({
         ).map(([tab, label]) => (
           <button
             key={tab}
+            data-tour={`nav-${tab}`}
             className={
               activeTab === tab
                 ? 'active'
