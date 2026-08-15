@@ -44,9 +44,6 @@ function StructuredLessonPlan({
   const instructor = instructorGuidance[skillId]
 
 
-  const [isOpen, setIsOpen] = useState(false)
-
-
   const [completedStages, setCompletedStages] = useState<
     string[]
   >([])
@@ -274,169 +271,127 @@ function StructuredLessonPlan({
 
   return (
     <section className="structured-plan">
-      <button
-        type="button"
-        className={
-          isOpen
-            ? 'lesson-plan-toggle open'
-            : 'lesson-plan-toggle'
-        }
-        onClick={() =>
-          setIsOpen((currentValue) => !currentValue)
-        }
-        aria-expanded={isOpen}
-      >
-        <span>
-          <strong>Instructor mode</strong>
+      <div className="lesson-plan-content">
+        <div className="lesson-plan-intro">
+          <strong>
+            Teaching {skillName.toLowerCase()}
+          </strong>
 
+          <p>
+            Work through the stages in order, but adapt the
+            amount of help to {learner.name}. You do not need
+            to complete every activity in one drive.
+          </p>
 
-          <small>
-            Step-by-step teaching · approximately 35–70 minutes
-          </small>
-        </span>
+          {!lessonStarted && (
+            <p>
+              Start the lesson first to unlock stage completion.
+              This makes sure the lesson timer and GPS are running
+              before any teaching stages are marked as done.
+            </p>
+          )}
+        </div>
 
-
-        <span className="lesson-plan-chevron">
-          {isOpen ? '⌃' : '⌄'}
-        </span>
-      </button>
-
-
-      {isOpen && (
-        <div className="lesson-plan-content">
-          <div className="lesson-plan-intro">
+        <div className="lesson-plan-progress">
+          <div>
             <strong>
-              Teaching {skillName.toLowerCase()}
+              {completedCount} of {lessonStages.length}
             </strong>
 
-
-            <p>
-              Work through the stages in order, but adapt the
-              amount of help to {learner.name}. You do not need
-              to complete every activity in one drive.
-            </p>
-
-            {!lessonStarted && (
-              <p>
-                Start the lesson first to unlock stage completion.
-                This makes sure the lesson timer and GPS are running
-                before any teaching stages are marked as done.
-              </p>
-            )}
+            <span>stages completed</span>
           </div>
 
+          <div
+            className="lesson-plan-progress-track"
+            aria-hidden="true"
+          >
+            <span
+              style={{
+                width: `${
+                  (completedCount /
+                    lessonStages.length) *
+                  100
+                }%`,
+              }}
+            />
+          </div>
+        </div>
 
-          <div className="lesson-plan-progress">
-            <div>
-              <strong>
-                {completedCount} of {lessonStages.length}
-              </strong>
+        {lessonStages.map((stage) => {
+          const isCompleted =
+            completedStages.includes(stage.id)
 
-
-              <span>stages completed</span>
-            </div>
-
-
-            <div
-              className="lesson-plan-progress-track"
-              aria-hidden="true"
+          return (
+            <article
+              className={
+                isCompleted
+                  ? 'lesson-plan-stage completed'
+                  : 'lesson-plan-stage'
+              }
+              key={stage.id}
             >
-              <span
-                style={{
-                  width: `${
-                    (completedCount /
-                      lessonStages.length) *
-                    100
-                  }%`,
-                }}
-              />
-            </div>
-          </div>
+              <div className="lesson-plan-stage-heading">
+                <div>
+                  <h3>{stage.title}</h3>
 
-
-          {lessonStages.map((stage) => {
-            const isCompleted =
-              completedStages.includes(stage.id)
-
-
-            return (
-              <article
-                className={
-                  isCompleted
-                    ? 'lesson-plan-stage completed'
-                    : 'lesson-plan-stage'
-                }
-                key={stage.id}
-              >
-                <div className="lesson-plan-stage-heading">
-                  <div>
-                    <h3>{stage.title}</h3>
-
-
-                    <span>{stage.suggestedTime}</span>
-                  </div>
-
-
-                  <button
-                    type="button"
-                    className="stage-complete-button"
-                    onClick={() =>
-                      toggleStage(stage.id)
-                    }
-                    aria-pressed={isCompleted}
-                    aria-disabled={!lessonStarted}
-                  >
-                    {!lessonStarted
-                      ? 'Start lesson first'
-                      : isCompleted
-                        ? '✓ Done'
-                        : 'Mark done'}
-                  </button>
+                  <span>{stage.suggestedTime}</span>
                 </div>
 
+                <button
+                  type="button"
+                  className="stage-complete-button"
+                  onClick={() =>
+                    toggleStage(stage.id)
+                  }
+                  aria-pressed={isCompleted}
+                  aria-disabled={!lessonStarted}
+                >
+                  {!lessonStarted
+                    ? 'Start lesson first'
+                    : isCompleted
+                      ? '✓ Done'
+                      : 'Mark done'}
+                </button>
+              </div>
 
-                <p>{stage.description}</p>
+              <p>{stage.description}</p>
 
+              {stage.sections.map((section) => (
+                <div
+                  className={`lesson-plan-subsection ${
+                    section.variant
+                      ? `lesson-plan-subsection-${section.variant}`
+                      : ''
+                  }`}
+                  key={`${stage.id}-${section.title}`}
+                >
+                  <h4>{section.title}</h4>
 
-                {stage.sections.map((section) => (
-                  <div
-                    className={`lesson-plan-subsection ${
-                      section.variant
-                        ? `lesson-plan-subsection-${section.variant}`
-                        : ''
-                    }`}
-                    key={`${stage.id}-${section.title}`}
-                  >
-                    <h4>{section.title}</h4>
+                  <ul className="guidance-list">
+                    {section.items.map(
+                      (item, index) => (
+                        <li
+                          key={`${stage.id}-${section.title}-${index}`}
+                        >
+                          {item}
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                </div>
+              ))}
+            </article>
+          )
+        })}
 
-
-                    <ul className="guidance-list">
-                      {section.items.map(
-                        (item, index) => (
-                          <li
-                            key={`${stage.id}-${section.title}-${index}`}
-                          >
-                            {item}
-                          </li>
-                        ),
-                      )}
-                    </ul>
-                  </div>
-                ))}
-              </article>
-            )
-          })}
-
-
-          <p className="lesson-plan-note">
-            Suggested timings are flexible. Start and finish
-            lesson setup only while safely parked. While the
-            vehicle is moving, concentrate on supervising the
-            learner and the road rather than interacting with
-            JackTrack.
-          </p>
-        </div>
-      )}
+        <p className="lesson-plan-note">
+          Suggested timings are flexible. Start and finish
+          lesson setup only while safely parked. While the
+          vehicle is moving, concentrate on supervising the
+          learner and the road rather than interacting with
+          JackTrack.
+        </p>
+      </div>
     </section>
   )
 }

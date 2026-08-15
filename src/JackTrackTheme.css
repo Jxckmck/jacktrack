@@ -2688,4 +2688,482 @@ button,
 html[data-theme='dark'] .native-avatar,
 html[data-theme='dark'] .avatar-choice-symbol {
   background: #466f6a !important;
+}/* ---------- Dark mode readability fixes ---------- */
+
+html[data-theme='dark'] .lesson-preview-note,
+html[data-theme='dark'] .lesson-preview-note strong,
+html[data-theme='dark'] .lesson-preview-note p,
+html[data-theme='dark'] .lesson-preview-note span {
+  color: #d7e4e1 !important;
+}
+
+html[data-theme='dark'] .lesson-preview-note {
+  background: rgba(255, 255, 255, 0.045) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+html[data-theme='dark'] .lesson-preview-card small,
+html[data-theme='dark'] .lesson-preview-card .skill-confidence-pill,
+html[data-theme='dark'] .lesson-preview-card .lesson-confidence-label {
+  color: #c7d4d1 !important;
+}
+
+html[data-theme='dark'] .lesson-plan-note,
+html[data-theme='dark'] .gps-message,
+html[data-theme='dark'] .helper-text {
+  color: #c5d0cd !important;
+}
+
+html[data-theme='dark'] .section-label {
+  color: #9fc1bb !important;
+}/* ---------- Instructor Mode dark readability ---------- */
+
+html[data-theme='dark'] .lesson-plan-intro strong {
+  color: #e8f0ee !important;
+}
+
+html[data-theme='dark'] .lesson-plan-intro p {
+  color: #b8c7c3 !important;
+}
+
+html[data-theme='dark'] .lesson-plan-stage h3,
+html[data-theme='dark'] .lesson-plan-stage h4 {
+  color: #e8f0ee !important;
+}
+
+html[data-theme='dark'] .lesson-plan-stage > p,
+html[data-theme='dark'] .lesson-plan-subsection,
+html[data-theme='dark'] .lesson-plan-subsection li {
+  color: #bdcac7 !important;
+}
+
+html[data-theme='dark'] .lesson-plan-stage-heading span,
+html[data-theme='dark'] .lesson-plan-progress span {
+  color: #9fb1ad !important;
+}
+
+html[data-theme='dark'] .lesson-plan-toggle strong {
+  color: #dfeae7 !important;
+}
+
+html[data-theme='dark'] .lesson-plan-toggle small {
+  color: #a9bbb7 !important;
+}/* =========================================================
+   JackTrack — dark mode contrast safety pass
+   Add this at the VERY END of JackTrackTheme.css.
+
+   Purpose:
+   - remove remaining legacy blue / purple / grey text in dark mode
+   - keep primary, secondary, accent, warning and danger text readable
+   - improve contrast on Instructor Mode, progress, history, maps and GPS
+   - leave light mode unchanged
+   ========================================================= */
+
+html[data-theme='dark'] {
+  --jt-dark-primary: #eef4f1;
+  --jt-dark-secondary: #b8c6c1;
+  --jt-dark-tertiary: #aab8b3;
+  --jt-dark-accent-readable: #9bc0b8;
+  --jt-dark-button-ink: #15201d;
+  --jt-dark-warm-readable: #eadbbd;
+  --jt-dark-danger-readable: #efbeb9;
+  --jt-dark-track: #3a4843;
+}
+
+/* ---------- Core readable text ---------- */
+
+html[data-theme='dark'] .app h1,
+html[data-theme='dark'] .app h2,
+html[data-theme='dark'] .app h3,
+html[data-theme='dark'] .app h4 {
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .app p,
+html[data-theme='dark'] .app small {
+  color: var(--jt-dark-secondary);
+}
+
+html[data-theme='dark'] .section-label {
+  color: var(--jt-dark-accent-readable) !important;
+}
+
+/* ---------- Primary buttons ----------
+   The dark theme uses a lighter petrol button.
+   Dark text gives much stronger contrast than white here.
+*/
+
+html[data-theme='dark'] .start-button,
+html[data-theme='dark'] .lesson-choice-button--recommended,
+html[data-theme='dark'] .lesson-choice-button--guided {
+  color: var(--jt-dark-button-ink) !important;
+}
+
+html[data-theme='dark'] .start-button strong,
+html[data-theme='dark'] .start-button small,
+html[data-theme='dark'] .start-button > span,
+html[data-theme='dark'] .lesson-choice-button--recommended strong,
+html[data-theme='dark'] .lesson-choice-button--recommended small,
+html[data-theme='dark'] .lesson-choice-button--recommended .lesson-choice-arrow,
+html[data-theme='dark'] .lesson-choice-button--guided strong,
+html[data-theme='dark'] .lesson-choice-button--guided small,
+html[data-theme='dark'] .lesson-choice-button--guided .lesson-choice-arrow {
+  color: var(--jt-dark-button-ink) !important;
+}
+
+/* ---------- Instructor Mode ---------- */
+
+html[data-theme='dark'] .lesson-plan-intro strong {
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-intro p {
+  color: var(--jt-dark-secondary) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-progress strong {
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-progress span {
+  color: var(--jt-dark-secondary) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-progress-track {
+  background: var(--jt-dark-track) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-progress-track > span {
+  background: var(--jt-accent) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-stage-heading h3 {
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-stage-heading span {
+  color: var(--jt-dark-secondary) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-stage > p {
+  color: var(--jt-dark-secondary) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-subsection {
+  color: var(--jt-dark-secondary) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-subsection h4 {
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-subsection li,
+html[data-theme='dark'] .guidance-list li {
+  color: var(--jt-dark-secondary) !important;
+}
+
+html[data-theme='dark'] .stage-complete-button {
+  background: var(--jt-accent-soft) !important;
+  color: var(--jt-accent-text) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-note {
+  background: var(--jt-surface-muted) !important;
+  color: var(--jt-dark-secondary) !important;
+}
+
+/* Instructor Mode coloured subsections */
+
+html[data-theme='dark'] .lesson-plan-subsection-script h4,
+html[data-theme='dark'] .lesson-plan-subsection-ready h4,
+html[data-theme='dark'] .lesson-plan-subsection-automatic h4 {
+  color: var(--jt-dark-accent-readable) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-subsection-warning h4 {
+  color: var(--jt-dark-warm-readable) !important;
+}
+
+html[data-theme='dark'] .lesson-plan-subsection-warning li {
+  color: #d9d0bd !important;
+}
+
+/* ---------- Lesson preview / skill picker ---------- */
+
+html[data-theme='dark'] .quick-skill-title,
+html[data-theme='dark'] .quick-skill-copy strong,
+html[data-theme='dark'] .quick-skill-name strong,
+html[data-theme='dark'] .lesson-preview-card h3 {
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .quick-skill-preview > span,
+html[data-theme='dark'] .quick-skill-name small,
+html[data-theme='dark'] .lesson-preview-confidence {
+  color: var(--jt-dark-secondary) !important;
+}
+
+html[data-theme='dark'] .skill-confidence-pill,
+html[data-theme='dark'] .lesson-choice-number {
+  background: var(--jt-surface-strong) !important;
+  color: #c7d3cf !important;
+}
+
+html[data-theme='dark'] .quick-skill-guided-label,
+html[data-theme='dark'] .lesson-type-chip--guided,
+html[data-theme='dark'] .lesson-type-chip--recommended {
+  background: var(--jt-accent-soft) !important;
+  color: var(--jt-accent-text) !important;
+}
+
+html[data-theme='dark'] .lesson-preview-note {
+  background: var(--jt-surface-muted) !important;
+}
+
+html[data-theme='dark'] .lesson-preview-note strong {
+  color: var(--jt-dark-accent-readable) !important;
+}
+
+html[data-theme='dark'] .lesson-preview-note span,
+html[data-theme='dark'] .lesson-preview-note p {
+  color: var(--jt-dark-secondary) !important;
+}
+
+/* ---------- Confidence / progress ---------- */
+
+html[data-theme='dark'] .progress-stat-grid strong,
+html[data-theme='dark'] .confidence-value-row strong,
+html[data-theme='dark'] .confidence-coverage-heading strong,
+html[data-theme='dark'] .lesson-summary-stats strong,
+html[data-theme='dark'] .gps-stat-grid strong {
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .progress-stat-grid span,
+html[data-theme='dark'] .confidence-value-row span,
+html[data-theme='dark'] .confidence-skill-meta small,
+html[data-theme='dark'] .progress-focus-copy small,
+html[data-theme='dark'] .lesson-summary-stats span,
+html[data-theme='dark'] .gps-stat-grid span {
+  color: var(--jt-dark-secondary) !important;
+}
+
+html[data-theme='dark'] .confidence-coverage-track,
+html[data-theme='dark'] .confidence-mini-meter,
+html[data-theme='dark'] .confidence-slider-track {
+  background: var(--jt-dark-track) !important;
+}
+
+html[data-theme='dark'] .confidence-coverage-track span,
+html[data-theme='dark'] .confidence-mini-meter span.filled,
+html[data-theme='dark'] .confidence-slider-track span {
+  background: var(--jt-accent) !important;
+}
+
+html[data-theme='dark'] .confidence-mini-meter.not-rated span {
+  background: #53615c !important;
+}
+
+html[data-theme='dark'] .unrated-skill-chips button,
+html[data-theme='dark'] .unrated-skill-chips > span {
+  background: var(--jt-surface-strong) !important;
+  color: #c7d3cf !important;
+}
+
+html[data-theme='dark'] .needs-practice-inline,
+html[data-theme='dark'] .practice-focus-note {
+  color: var(--jt-dark-warm-readable) !important;
+}
+
+/* ---------- Practice flags / notes ---------- */
+
+html[data-theme='dark'] .practice-flag-summary,
+html[data-theme='dark'] .practice-note-preview,
+html[data-theme='dark'] .lesson-history-flag,
+html[data-theme='dark'] .practice-attention-card,
+html[data-theme='dark'] .progress-practice-card {
+  border-color: rgba(234, 219, 189, 0.18) !important;
+  background: rgba(69, 63, 52, 0.72) !important;
+}
+
+html[data-theme='dark'] .practice-flag-summary strong,
+html[data-theme='dark'] .practice-flag-summary span,
+html[data-theme='dark'] .practice-note-preview strong,
+html[data-theme='dark'] .practice-note-preview span,
+html[data-theme='dark'] .lesson-history-flag strong,
+html[data-theme='dark'] .lesson-history-flag span {
+  color: var(--jt-dark-warm-readable) !important;
+}
+
+html[data-theme='dark'] .practice-note-preview button {
+  color: #f0dfbd !important;
+}
+
+html[data-theme='dark'] .needs-practice-check {
+  border-color: var(--jt-border) !important;
+  background: var(--jt-surface-muted) !important;
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .needs-practice-check:has(input:checked) {
+  border-color: rgba(234, 219, 189, 0.30) !important;
+  background: rgba(69, 63, 52, 0.78) !important;
+}
+
+/* ---------- GPS ---------- */
+
+html[data-theme='dark'] .gps-status {
+  background: var(--jt-accent-soft) !important;
+  color: var(--jt-accent-text) !important;
+}
+
+html[data-theme='dark'] .gps-status.recording {
+  background: var(--jt-accent) !important;
+  color: var(--jt-dark-button-ink) !important;
+}
+
+html[data-theme='dark'] .gps-message {
+  color: var(--jt-dark-secondary) !important;
+}
+
+html[data-theme='dark'] .gps-inline-warning,
+html[data-theme='dark'] .gps-coverage-warning {
+  background: #453f34 !important;
+  border-color: rgba(234, 219, 189, 0.22) !important;
+}
+
+html[data-theme='dark'] .gps-inline-warning strong,
+html[data-theme='dark'] .gps-inline-warning p,
+html[data-theme='dark'] .gps-coverage-warning strong,
+html[data-theme='dark'] .gps-coverage-warning p,
+html[data-theme='dark'] .gps-coverage-warning span {
+  color: var(--jt-dark-warm-readable) !important;
+}
+
+html[data-theme='dark'] .gps-coverage-good {
+  background: var(--jt-accent-soft) !important;
+  color: var(--jt-accent-text) !important;
+}
+
+/* ---------- Map / route reflections ---------- */
+
+html[data-theme='dark'] .reflection-count {
+  background: var(--jt-accent-soft) !important;
+  color: var(--jt-accent-text) !important;
+}
+
+html[data-theme='dark'] .marker-mode-button {
+  border-color: var(--jt-accent) !important;
+  background: var(--jt-surface-muted) !important;
+  color: var(--jt-dark-accent-readable) !important;
+}
+
+html[data-theme='dark'] .marker-mode-button.active {
+  background: var(--jt-accent) !important;
+  color: var(--jt-dark-button-ink) !important;
+}
+
+html[data-theme='dark'] .marker-instruction {
+  background: var(--jt-accent-soft) !important;
+  color: var(--jt-accent-text) !important;
+}
+
+html[data-theme='dark'] .reflection-content strong {
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .reflection-content > span {
+  color: var(--jt-dark-secondary) !important;
+}
+
+html[data-theme='dark'] .map-unavailable strong {
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .map-unavailable p {
+  color: var(--jt-dark-secondary) !important;
+}
+
+/* ---------- History / summaries ---------- */
+
+html[data-theme='dark'] .lesson-history-card strong,
+html[data-theme='dark'] .lesson-assessment-summary strong,
+html[data-theme='dark'] .success-card h3 {
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .lesson-history-card small,
+html[data-theme='dark'] .lesson-assessment-summary,
+html[data-theme='dark'] .history-section-heading > span,
+html[data-theme='dark'] .lesson-history-meta span {
+  color: var(--jt-dark-secondary) !important;
+}
+
+html[data-theme='dark'] .lesson-assessment-summary,
+html[data-theme='dark'] .history-section-heading > span,
+html[data-theme='dark'] .lesson-history-meta span {
+  background: var(--jt-surface-muted) !important;
+}
+
+html[data-theme='dark'] .success-card {
+  border-color: rgba(124, 163, 156, 0.24) !important;
+  background: var(--jt-accent-soft) !important;
+}
+
+html[data-theme='dark'] .success-card h3,
+html[data-theme='dark'] .success-card p {
+  color: var(--jt-accent-text) !important;
+}
+
+/* ---------- More / settings ---------- */
+
+html[data-theme='dark'] .settings-action-copy strong,
+html[data-theme='dark'] .theme-option-copy strong {
+  color: var(--jt-dark-primary) !important;
+}
+
+html[data-theme='dark'] .settings-action-copy small,
+html[data-theme='dark'] .theme-option-copy small,
+html[data-theme='dark'] .offline-card p,
+html[data-theme='dark'] .backup-card > p {
+  color: var(--jt-dark-secondary) !important;
+}
+
+/* ---------- Danger ----------
+   Keep danger distinct but bright enough on the dark surfaces.
+*/
+
+html[data-theme='dark'] .danger-card h3,
+html[data-theme='dark'] .delete-text-button,
+html[data-theme='dark'] .gps-discard-button,
+html[data-theme='dark'] .reflection-actions button,
+html[data-theme='dark'] .danger-button {
+  color: var(--jt-dark-danger-readable) !important;
+}
+
+html[data-theme='dark'] .danger-card p {
+  color: #d6c1be !important;
+}
+
+/* ---------- Native bottom navigation ---------- */
+
+html[data-theme='dark'] .bottom-nav button {
+  color: #b3c0bc !important;
+}
+
+html[data-theme='dark'] .bottom-nav button.active {
+  color: var(--jt-accent-text) !important;
+}
+
+/* ---------- Final safeguard ----------
+   Prevent legacy muted navy/grey text from reappearing in common
+   information rows without flattening intentional status colours.
+*/
+
+html[data-theme='dark'] .lesson-summary-link small,
+html[data-theme='dark'] .confidence-skill-row small,
+html[data-theme='dark'] .progress-focus-list small,
+html[data-theme='dark'] .practice-focus-list small,
+html[data-theme='dark'] .settings-row small {
+  color: var(--jt-dark-secondary) !important;
 }
